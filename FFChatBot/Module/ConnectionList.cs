@@ -21,6 +21,7 @@ namespace FFChatBot.Module
         {
             this.m_list = list;
             this.m_teleUserId = userId;
+            this.m_connectionExpires = DateTime.UtcNow.AddMinutes(3);
             this.m_connected = true;
         }
         public User(UserList list, int userId, string username, string ffxiv)
@@ -56,7 +57,7 @@ namespace FFChatBot.Module
         private DateTime m_connectionExpires;
         public DateTime ConnectionExpires { get { return this.m_connectionExpires; } }
 
-        private bool m_connected;
+        private volatile bool m_connected;
         public bool Connected
         {
             get { return this.m_connected; }
@@ -74,24 +75,24 @@ namespace FFChatBot.Module
             }
         }
 
-        private bool m_verified;
+        private volatile bool m_verified;
         public bool Verified
         {
             get { return this.m_verified; }
-            set
-            {
-                if (this.m_verified == value)
-                    return;
-
-                this.m_verified = value;
-
-                this.m_list.UserConnected(this);
-            }
         }
 
-        public void ExpandExpires(int minutes)
+        public void SetVirified()
         {
-            this.m_connectionExpires = DateTime.UtcNow.AddMinutes(minutes);
+            this.m_verified = true;
+            this.m_connectionExpires = DateTime.UtcNow.AddMinutes(this.m_list.ConnectionExpires);
+
+            this.m_list.Save();
+            this.m_list.UserConnected(this);
+        }
+
+        public void ExpandExpires()
+        {
+            this.m_connectionExpires = DateTime.UtcNow.AddMinutes(this.m_list.ConnectionExpires);
             this.m_list.UserUpdated(this);
         }
     }
@@ -109,6 +110,13 @@ namespace FFChatBot.Module
 
         public event UserConnectedEvent OnUserConnected;
         public event UserDisconnectedEvent OnUserDisconnected;
+
+        private volatile int m_connectionExpires = 5;
+        public int ConnectionExpires
+        {
+            get { return this.m_connectionExpires; }
+            set { this.m_connectionExpires = value; }
+        }
 
         public void Init()
         {
@@ -163,8 +171,6 @@ namespace FFChatBot.Module
 
                     this.m_lst.Add(user);
 
-                    this.Save();
-
                     if (this.OnUserAdded != null)
                         this.OnUserAdded(user);
 
@@ -210,7 +216,6 @@ namespace FFChatBot.Module
         {
             User user;
             int index;
-            bool updated = false;
 
             while (true)
             {
@@ -231,8 +236,6 @@ namespace FFChatBot.Module
                             {
                                 this.m_lst.RemoveAt(index);
 
-                                updated = true;
-
                                 if (this.OnUserRemoved != null)
                                     this.OnUserRemoved(user);
 
@@ -244,16 +247,13 @@ namespace FFChatBot.Module
                     }
 
                     user = null;
-                    
-                    if (updated)
-                        this.Save();
                 }
 
                 Thread.Sleep(500);
             }
         }
 
-        private void Save()
+        public void Save()
         {
             lock (this.m_lst)
             {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -22,6 +23,9 @@ namespace FFChatBot.Module.FFXIV
 
         public readonly static IDictionary<int, string> LogIDs = new Dictionary<int, string>
         {
+#if DEBUG
+		    { 0x000A, "링 1" },
+#endif
 		    { 0x0010, "링 1" },
 		    { 0x0011, "링 2" },
 		    { 0x0012, "링 3" },
@@ -274,6 +278,7 @@ namespace FFChatBot.Module.FFXIV
             int i;
             int len;
             int writenLine = 0;
+            bool writeLine = true;
 
             for (int line = 0; line < 15; ++line)
             {
@@ -287,10 +292,7 @@ namespace FFChatBot.Module.FFXIV
                 if (textPtr == IntPtr.Zero)
                     continue;
 
-                for (i = 0; i < 256; ++i)
-                    buff[i] = 0x20; // ' '
-
-                if (str.Length > 0)
+                if (writeLine)
                 {
                     rawStr = GetText(head, ref str, len);
 
@@ -301,14 +303,30 @@ namespace FFChatBot.Module.FFXIV
 
                     for (i = 0; i < rawStr.Length; ++i)
                         buff[i] = rawStr[i]; // ' '
+
+                    for (i = rawStr.Length; i < len; ++i)
+                        buff[i] = 0x20; // ' '
                 }
 
                 NativeMethods.WriteProcessMemory(this.m_ffxivHandle, textPtr, buff, new IntPtr(len), out written);
+                
+                if (writeLine && str.Length == 0)
+                {
+                    rawStr = Encoding.UTF8.GetBytes(LogCommand[chat.Id]);
+
+                    for (i = 0; i < rawStr.Length; ++i)
+                        buff[i] = rawStr[i]; // ' '
+
+                    for (i = rawStr.Length; i < 256; ++i)
+                        buff[i] = 0x20; // ' '
+
+                    writeLine = false;
+                }
             }
 
             if (writenLine > 0)
             {
-                SendKey(this.m_ffxivMainWnd, Keys.F8);
+                SendKey(this.m_ffxivMainWnd, this.m_ttfKey);
                 Thread.Sleep(250 * writenLine);
             }
         }
@@ -338,7 +356,7 @@ namespace FFChatBot.Module.FFXIV
         private static void SendKey(IntPtr hwnd, Keys key)
         {
             NativeMethods.PostMessage(hwnd, NativeMethods.WM_KEYDOWN, new IntPtr((int)key), IntPtr.Zero);
-            Thread.Sleep(100);
+            Thread.Sleep(200);
             NativeMethods.PostMessage(hwnd, NativeMethods.WM_KEYUP,   new IntPtr((int)key), IntPtr.Zero);
         }
 
@@ -477,24 +495,66 @@ namespace FFChatBot.Module.FFXIV
         {
             hasTag = false;
 
-            var buff = new byte[rawData.Length];
-            var bindex = 0;
+            int nextIndex;
+            byte[] bytes;
+            int completionId;
 
-            byte v;
-            while (index < endIndex)
+            using (var mem = new MemoryStream(rawData.Length))
             {
-                v = rawData[index++];
-
-                if (v == 2)
+                byte v;
+                while (index < endIndex)
                 {
-                    index += rawData[index + 1] + 2;
-                    hasTag = true;
-                }
-                else
-                    buff[bindex++] = v;
-            }
+                    v = rawData[index++];
 
-            return bindex > 0 ? Encoding.UTF8.GetString(buff, 0, bindex) : null;
+                    if (v == 2 && index < endIndex)
+                    {
+                        v = rawData[index];
+                        nextIndex = index + rawData[index + 1] + 2;
+
+                        if (v == 0x2E || v == 0x27)
+                        {
+                            hasTag = true;
+
+                            if (v == 0x2E)
+                            {
+                                v = rawData[index + 2];
+                                if (v != 0xC9)
+                                {
+                                    completionId = GetValue(rawData, index + 3);
+                                    bytes = FFData.FFData.Table[v][completionId];
+
+                                    mem.Write(bytes, 0, bytes.Length);
+                                }
+                            }
+
+                            index = nextIndex;
+
+                            continue;
+                        }
+                    }
+                    
+                    mem.WriteByte(v);
+                }
+
+                return mem.Length > 0 ? Encoding.UTF8.GetString(mem.ToArray()) : null;
+            }
+        }
+        private static int GetValue(byte[] raw, int index)
+        {
+            var v = raw[index];
+
+            if (v < 0xF0)
+                return v - 1;
+            else if (v == 0xF0)
+                return v;
+            else if (v == 0xF2)
+                return (raw[index + 1] << 8) | (raw[index + 2]);
+            else if (v == 0xF6)
+                return (raw[index + 1] << 16) | (raw[index + 2] << 8) | (raw[index + 3]);
+            else if (v == 0xF6)
+                return (raw[index + 1] << 32) | (raw[index + 2] << 16) | (raw[index + 3] << 8) | (raw[index + 4]);
+            else
+                return (raw[index + 1] - 1);
         }
         
         private static class NativeMethods

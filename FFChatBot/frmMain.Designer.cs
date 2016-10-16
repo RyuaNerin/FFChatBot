@@ -59,12 +59,18 @@
             this.label2 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.nudTTFMacroNum = new System.Windows.Forms.NumericUpDown();
+            this.groupBox5 = new System.Windows.Forms.GroupBox();
+            this.btnExpires = new System.Windows.Forms.Button();
+            this.label4 = new System.Windows.Forms.Label();
+            this.nudExpires = new System.Windows.Forms.NumericUpDown();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.groupBox4.SuspendLayout();
             this.grbTTF.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudTTFMacroNum)).BeginInit();
+            this.groupBox5.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nudExpires)).BeginInit();
             this.SuspendLayout();
             // 
             // groupBox1
@@ -160,9 +166,9 @@
             // 
             // btnEnableT2F
             // 
-            this.btnEnableT2F.Location = new System.Drawing.Point(13, 94);
+            this.btnEnableT2F.Location = new System.Drawing.Point(9, 79);
             this.btnEnableT2F.Name = "btnEnableT2F";
-            this.btnEnableT2F.Size = new System.Drawing.Size(57, 27);
+            this.btnEnableT2F.Size = new System.Drawing.Size(57, 30);
             this.btnEnableT2F.TabIndex = 6;
             this.btnEnableT2F.Text = "적용";
             this.btnEnableT2F.UseVisualStyleBackColor = true;
@@ -301,7 +307,7 @@
             this.grbTTF.Enabled = false;
             this.grbTTF.Location = new System.Drawing.Point(315, 14);
             this.grbTTF.Name = "grbTTF";
-            this.grbTTF.Size = new System.Drawing.Size(136, 127);
+            this.grbTTF.Size = new System.Drawing.Size(136, 114);
             this.grbTTF.TabIndex = 5;
             this.grbTTF.TabStop = false;
             this.grbTTF.Text = "클라로 전송";
@@ -309,18 +315,18 @@
             // txtTTFKey
             // 
             this.txtTTFKey.BackColor = System.Drawing.SystemColors.Window;
-            this.txtTTFKey.Location = new System.Drawing.Point(6, 65);
+            this.txtTTFKey.Location = new System.Drawing.Point(55, 50);
             this.txtTTFKey.Name = "txtTTFKey";
             this.txtTTFKey.ReadOnly = true;
-            this.txtTTFKey.Size = new System.Drawing.Size(124, 23);
+            this.txtTTFKey.Size = new System.Drawing.Size(75, 23);
             this.txtTTFKey.TabIndex = 12;
             this.txtTTFKey.KeyDown += new System.Windows.Forms.KeyEventHandler(this.txtTTFKey_KeyDown);
             // 
             // btnDisableT2F
             // 
-            this.btnDisableT2F.Location = new System.Drawing.Point(76, 94);
+            this.btnDisableT2F.Location = new System.Drawing.Point(72, 79);
             this.btnDisableT2F.Name = "btnDisableT2F";
-            this.btnDisableT2F.Size = new System.Drawing.Size(54, 27);
+            this.btnDisableT2F.Size = new System.Drawing.Size(58, 30);
             this.btnDisableT2F.TabIndex = 10;
             this.btnDisableT2F.Text = "해제";
             this.btnDisableT2F.UseVisualStyleBackColor = true;
@@ -329,11 +335,11 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(6, 47);
+            this.label3.Location = new System.Drawing.Point(6, 53);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(111, 15);
+            this.label3.Size = new System.Drawing.Size(43, 15);
             this.label3.TabIndex = 9;
-            this.label3.Text = "매크로 동작 단축키";
+            this.label3.Text = "단축키";
             // 
             // label2
             // 
@@ -370,11 +376,66 @@
             0,
             0});
             // 
+            // groupBox5
+            // 
+            this.groupBox5.Controls.Add(this.btnExpires);
+            this.groupBox5.Controls.Add(this.label4);
+            this.groupBox5.Controls.Add(this.nudExpires);
+            this.groupBox5.Location = new System.Drawing.Point(315, 134);
+            this.groupBox5.Name = "groupBox5";
+            this.groupBox5.Size = new System.Drawing.Size(136, 53);
+            this.groupBox5.TabIndex = 6;
+            this.groupBox5.TabStop = false;
+            this.groupBox5.Text = "연결 유효 시간";
+            // 
+            // btnExpires
+            // 
+            this.btnExpires.Location = new System.Drawing.Point(80, 22);
+            this.btnExpires.Name = "btnExpires";
+            this.btnExpires.Size = new System.Drawing.Size(50, 25);
+            this.btnExpires.TabIndex = 13;
+            this.btnExpires.Text = "적용";
+            this.btnExpires.UseVisualStyleBackColor = true;
+            this.btnExpires.Click += new System.EventHandler(this.btnExpires_Click);
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(55, 24);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(19, 15);
+            this.label4.TabIndex = 1;
+            this.label4.Text = "분";
+            // 
+            // nudExpires
+            // 
+            this.nudExpires.Location = new System.Drawing.Point(6, 22);
+            this.nudExpires.Maximum = new decimal(new int[] {
+            60,
+            0,
+            0,
+            0});
+            this.nudExpires.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.nudExpires.Name = "nudExpires";
+            this.nudExpires.Size = new System.Drawing.Size(43, 23);
+            this.nudExpires.TabIndex = 0;
+            this.nudExpires.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.nudExpires.Value = new decimal(new int[] {
+            5,
+            0,
+            0,
+            0});
+            // 
             // frmMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(463, 499);
+            this.Controls.Add(this.groupBox5);
             this.Controls.Add(this.grbTTF);
             this.Controls.Add(this.groupBox4);
             this.Controls.Add(this.groupBox3);
@@ -386,7 +447,7 @@
             this.MaximizeBox = false;
             this.Name = "frmMain";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "FFXIV CHAT TO TELEGRAM BOT";
+            this.Text = "FFXIV CHAT TO TELEGRAM BOT (BETA)";
             this.Load += new System.EventHandler(this.frmMain_Load);
             this.groupBox1.ResumeLayout(false);
             this.groupBox2.ResumeLayout(false);
@@ -396,6 +457,9 @@
             this.grbTTF.ResumeLayout(false);
             this.grbTTF.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudTTFMacroNum)).EndInit();
+            this.groupBox5.ResumeLayout(false);
+            this.groupBox5.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nudExpires)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -431,6 +495,10 @@
         private System.Windows.Forms.ImageList imgUsers;
         private System.Windows.Forms.Button btnDisconnect;
         private System.Windows.Forms.Label lblTelegramBotName;
+        private System.Windows.Forms.GroupBox groupBox5;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.NumericUpDown nudExpires;
+        private System.Windows.Forms.Button btnExpires;
     }
 }
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -46,6 +47,8 @@ namespace FFChatBot
 
             this.txtTTFKey.Text = "F8";
             this.txtTTFKey.Tag = Keys.F8;
+
+            this.Enabled = false;
         }
 
         private async void frmMain_Load(object sender, EventArgs e)
@@ -63,9 +66,13 @@ namespace FFChatBot
             }
 #endif
 
+            await Task.Factory.StartNew(FFData.FFData.Load);
+
             this.m_user.Init();
 
             this.m_client.Initialize();
+
+            this.Enabled = true;
         }
 
         private void User_OnUserConnected(User user)
@@ -74,7 +81,7 @@ namespace FFChatBot
 
             if (user.Verified)
             {
-                this.m_client.SendMessage(new Chat(this.m_chatId, null, "봇 : " + user.FFName + "님이 접속하셨습니다."));
+                this.m_client.SendMessage(new Chat(this.m_chatId, null, ": " + user.FFName + "님이 접속하셨습니다."));
 
                 this.m_telegram.SendMessage(user, "connected.");
             }
@@ -85,7 +92,7 @@ namespace FFChatBot
             Console.WriteLine("Disconnected : {0} ({1})", user.TeleUsername, user.TeleUserId);
 
             if (user.Verified)
-                this.m_client.SendMessage(new Chat(this.m_chatId, null, "봇 : " + user.FFName + "님이 종료하셨습니다."));
+                this.m_client.SendMessage(new Chat(this.m_chatId, null, ": " + user.FFName + "님이 종료하셨습니다."));
 
             this.m_telegram.SendMessage(user, "disconnected.");
             this.m_telegram.LeaveChat(user);
@@ -380,26 +387,35 @@ namespace FFChatBot
             ((User)this.lstUser.SelectedItems[0].Tag).Connected = false;
         }
 
-        private readonly static Regex RegTele2Client = new Regex("^<([^>]+)> (.+)$");
+        private readonly static Regex RegTele2Client = new Regex("^<([^>]+)> (.+)");
+        private readonly static Regex RegBot2Client = new Regex("^: (.+)님이 (접속|종료)하셨습니다.");
         private void Client_OnNewChat(Chat chat)
         {
             Console.WriteLine("F [{0}] {1}", chat.Id, chat.Full);
 
             int id = this.m_chatId;
-            if (id != 0 && (chat.Id == id || (id == 0x0018 && id > 0x2000)))
+            if (id != 0 && (chat.Id == id || (id == 0x0018 && chat.Id > 0x2000)))
             {
                 bool botMessage = false;
+                var sender = chat.User;
 
                 if (this.m_client.ClientUserName != null && this.m_client.ClientUserName == chat.User)
                 {
-                    if (chat.Text.StartsWith("봇 : "))
-                        return;
-
                     var match = RegTele2Client.Match(chat.Text);
                     if (match.Success)
                     {
                         botMessage = true;
                         chat = new Chat(0, match.Groups[1].Value, match.Groups[2].Value);
+                    }
+                    else
+                    {
+                        match = RegBot2Client.Match(chat.Text);
+                        if (match.Success)
+                        {
+                            botMessage = true;
+                            chat = new Chat(0, null, chat.Text);
+                            sender = match.Groups[1].Value;
+                        }
                     }
                 }
 
@@ -407,13 +423,12 @@ namespace FFChatBot
                 {
                     if (user.Connected)
                     {
-                        if (!user.Verified && chat.Text == user.VerifyKey)
+                        if (!user.Verified && chat.Text.IndexOf(user.VerifyKey, StringComparison.CurrentCultureIgnoreCase) >= 0)
                         {
                             user.FFName = chat.User;
-                            user.ExpandExpires(10);
-                            user.Verified = true;
+                            user.SetVirified();
                         }
-                        else if (user.Verified && (!botMessage || (botMessage && user.FFName != chat.User)))
+                        else if (user.Verified && (!botMessage || (botMessage && user.FFName != sender)))
                         {
                             this.m_telegram.SendMessage(user, chat.Full);
                         }
@@ -436,15 +451,13 @@ namespace FFChatBot
                 if (!user.Verified)
                 {
                     user.Connected = true;
-                    user.ExpandExpires(3);
-
-                    user.VerifyKey = "ff_" + Utility.GetRandomString(5);
+                    user.VerifyKey = "verified key :\nff_" + Utility.GetRandomString(5);
                     this.m_telegram.SendMessage(user, user.VerifyKey);
                 }
                 else
                 {
                     user.Connected = true;
-                    user.ExpandExpires(10);
+                    user.ExpandExpires();
                 }
             }
             else if (msg.Text == "/end")
@@ -456,11 +469,16 @@ namespace FFChatBot
             {
                 if (user != null && user.Verified && user.Connected)
                 {
-                    user.ExpandExpires(10);
+                    user.ExpandExpires();
                     
                     this.m_client.SendMessage(new Chat(this.m_chatId, user.FFName, msg.Text));
                 }
             }
+        }
+
+        private void btnExpires_Click(object sender, EventArgs e)
+        {
+            this.m_user.ConnectionExpires = (int)this.nudExpires.Value;
         }
     }
 }

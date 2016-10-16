@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Args;
-using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types.Enums;
 
 namespace FFChatBot.Module
@@ -36,8 +35,6 @@ namespace FFChatBot.Module
                 this.m_telegram.OnMessage += Telegram_OnMessage;
                 this.m_telegram.OnMessageEdited += Telegram_OnMessage;
 
-                this.m_telegram.OnCallbackQuery += Telegram_OnCallbackQuery;
-
                 this.m_startTime = DateTime.UtcNow;
                 this.m_telegram.StartReceiving();
 
@@ -63,7 +60,7 @@ namespace FFChatBot.Module
 
         public void SendMessage(User user, string str)
         {
-            if (!m_telegramConnected)
+            if (!this.m_telegramConnected)
                 return;
 
             this.m_telegram.SendTextMessageAsync(user.TeleChatId, str, true);
@@ -71,24 +68,19 @@ namespace FFChatBot.Module
         
         public void LeaveChat(User user)
         {
-            if (!m_telegramConnected)
+            if (!this.m_telegramConnected)
                 return;
 
             this.m_telegram.LeaveChatAsync(user.TeleChatId);
-        }
-        
-        private void Telegram_OnCallbackQuery(object sender, CallbackQueryEventArgs e)
-        {
-            this.m_telegram.AnswerCallbackQueryAsync(e.CallbackQuery.Id);
         }
 
         private void Telegram_OnMessage(object sender, MessageEventArgs e)
         {
             var msg = e.Message;
-            if (msg == null || msg.Type != MessageType.TextMessage)
-                return;
-
-            if (msg.Date < this.m_startTime)
+            if (msg == null ||
+                msg.Type != MessageType.TextMessage ||
+                msg.Chat.Type != ChatType.Private ||
+                msg.Date < this.m_startTime)
                 return;
 
             if (this.OnMessage != null)
