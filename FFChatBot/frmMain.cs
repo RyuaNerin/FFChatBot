@@ -56,7 +56,7 @@ namespace FFChatBot
             this.cmbChat.SelectedIndex = 0;
 
 #if !DEBUG
-            var newVer = await Task.Factory.StartNew(() => LatestRelease.CheckNewVersion("RyuaNerin", "ffchat"));
+            var newVer = await Task.Factory.StartNew(() => LatestRelease.CheckNewVersion("RyuaNerin", "FFChatBot"));
             if (newVer != null)
             {
                 MessageBox.Show("새 버전이 출시되었습니다.");
