@@ -260,7 +260,7 @@ namespace FFChatBot.Module.FFXIV
                 Thread.Sleep(500);
             }
         }
-        
+
         private void WriteChat(Chat chat)
         {
             var macroPtr = this.m_macro + this.m_macroPattern.MacroOffset + this.m_macroPattern.MacroSize * this.m_ttfMacro;
@@ -490,7 +490,8 @@ namespace FFChatBot.Module.FFXIV
             pos = index + len + 1;
             return len > 0 ? GetStr(rawData, index, index + len, out hasTag) : null;
         }
-        
+
+        private readonly static byte[] UnknownCommand = Encoding.UTF8.GetBytes("(알 수 없는 상용구)");
         private static string GetStr(byte[] rawData, int index, int endIndex, out bool hasTag)
         {
             hasTag = false;
@@ -520,8 +521,15 @@ namespace FFChatBot.Module.FFXIV
                                 v = rawData[index + 2];
                                 if (v != 0xC9)
                                 {
-                                    completionId = GetValue(rawData, index + 3);
-                                    bytes = FFData.FFData.Table[v][completionId];
+                                    try
+                                    {
+                                        completionId = GetValue(rawData, index + 3);
+                                        bytes = FFData.FFData.Table[v][completionId];
+                                    }
+                                    catch
+                                    {
+                                        bytes = UnknownCommand;
+                                    }
 
                                     mem.Write(bytes, 0, bytes.Length);
                                 }

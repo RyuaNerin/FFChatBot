@@ -451,8 +451,8 @@ namespace FFChatBot
                 if (!user.Verified)
                 {
                     user.Connected = true;
-                    user.VerifyKey = "verified key :\nff_" + Utility.GetRandomString(5);
-                    this.m_telegram.SendMessage(user, user.VerifyKey);
+                    user.VerifyKey = "ff_" + Utility.GetRandomString(5);
+                    this.m_telegram.SendMessage(user, "verified key : " + user.VerifyKey);
                 }
                 else
                 {
