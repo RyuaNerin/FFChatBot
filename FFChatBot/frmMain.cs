@@ -1,20 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using FFChatBot.Module;
 using FFChatBot.Module.FFXIV;
-using RyuaNerin;
 using Telegram.Bot.Args;
+#if !DEBUG
+using System.Diagnostics;
+using RyuaNerin;
+#endif
 
 namespace FFChatBot
 {
     internal partial class frmMain : Form
     {
-        private volatile int m_chatId = 0;
+        private volatile ChatIds m_chatId = 0;
 
         private readonly IDictionary<User, ListViewItem> m_userItem = new Dictionary<User, ListViewItem>();
 
@@ -49,6 +52,8 @@ namespace FFChatBot
             this.txtTTFKey.Tag = Keys.F8;
 
             this.Enabled = false;
+
+            this.ntf.Icon = this.Icon;
         }
 
         private async void frmMain_Load(object sender, EventArgs e)
@@ -66,7 +71,7 @@ namespace FFChatBot
             }
 #endif
 
-            await Task.Factory.StartNew(FFData.FFData.Load);
+            await Task.Factory.StartNew(FFData.Completion.Load);
 
             this.m_user.Init();
 
@@ -81,9 +86,12 @@ namespace FFChatBot
 
             if (user.Verified)
             {
-                this.m_client.SendMessage(new Chat(this.m_chatId, null, ": " + user.FFName + "님이 접속하셨습니다."));
+                this.m_client.SendMessage(new Chat(this.m_chatId, null, user.FFName + "님이 접속했습니다."));
 
-                this.m_telegram.SendMessage(user, "connected.");
+                var chat = new Chat(this.m_chatId, null, "`" + user.FFName + "`님이 접속했습니다.");
+                this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, true), user, true);
+
+                this.m_telegram.SendMessage(user, "connected.", false);
             }
         }
 
@@ -92,9 +100,14 @@ namespace FFChatBot
             Console.WriteLine("Disconnected : {0} ({1})", user.TeleUsername, user.TeleUserId);
 
             if (user.Verified)
-                this.m_client.SendMessage(new Chat(this.m_chatId, null, ": " + user.FFName + "님이 종료하셨습니다."));
+            {
+                this.m_client.SendMessage(new Chat(this.m_chatId, null, user.FFName + "님이 종료했습니다."));
 
-            this.m_telegram.SendMessage(user, "disconnected.");
+                var chat = new Chat(this.m_chatId, null, "`" + user.FFName + "`님이 접속했습니다.");
+                this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, true), user, true);
+            }
+
+            this.m_telegram.SendMessage(user, "disconnected.", false);
             this.m_telegram.LeaveChat(user);
         }
 
@@ -182,10 +195,18 @@ namespace FFChatBot
 
             this.cmbClient.Items.Clear();
             this.cmbClient.Items.AddRange(clients);
-            this.cmbClient.SelectedIndex = 0;
+            if (this.cmbClient.Items.Count > 0)
+            {
+                this.cmbClient.SelectedIndex = 0;
 
-            this.cmbClient.Enabled = true;
-            this.btnClientSelect.Enabled = true;
+                this.cmbClient.Enabled = true;
+                this.btnClientSelect.Enabled = true;
+            }
+            else
+            {
+                this.cmbClient.Enabled = false;
+                this.btnClientSelect.Enabled = false;
+            }
         }
         
         private void Client_OnClientSelected(string client, bool success)
@@ -206,6 +227,8 @@ namespace FFChatBot
 
                 this.cmbClient.Enabled = false;
                 this.btnClientSelect.Enabled = false;
+
+                this.btnClientVisible.Enabled = true;
 
                 this.grbTTF.Enabled = true;
             }
@@ -231,6 +254,8 @@ namespace FFChatBot
             this.btnDisableT2F_Click(null, null);
 
             this.grbTTF.Enabled = false;
+
+            this.btnClientVisible.Enabled = false;
 
             this.cmbClient.Items.Clear();
 
@@ -267,7 +292,7 @@ namespace FFChatBot
             if (this.cmbChat.SelectedIndex == -1)
                 return;
 
-            this.m_chatId = this.cmbChat.SelectedIndex == 0 ? 0x0018 : 0x0010 + this.cmbChat.SelectedIndex - 1;
+            this.m_chatId = this.cmbChat.SelectedIndex == 0 ? ChatIds.FreeCompany : (ChatIds.LinkShell_1 + this.cmbChat.SelectedIndex - 1);
             this.lblChat.Text = "현재 설정 :" + FFXIVModule.LogIDs[this.m_chatId];
         }
 
@@ -387,53 +412,55 @@ namespace FFChatBot
             ((User)this.lstUser.SelectedItems[0].Tag).Connected = false;
         }
 
-        private readonly static Regex RegTele2Client = new Regex("^<([^>]+)> (.+)");
-        private readonly static Regex RegBot2Client = new Regex("^: (.+)님이 (접속|종료)하셨습니다.");
+        private void button1_Click(object sender, EventArgs e)
+        {
+            if (this.lstUser.SelectedItems.Count != 1)
+                return;
+
+            var user = (User)this.lstUser.SelectedItems[0].Tag;
+
+            user.FFName = this.textBox1.Text;
+            this.textBox1.Text = null;
+
+            user.SetVirified();
+        }
+
         private void Client_OnNewChat(Chat chat)
         {
             Console.WriteLine("F [{0}] {1}", chat.Id, chat.Full);
 
-            int id = this.m_chatId;
-            if (id != 0 && (chat.Id == id || (id == 0x0018 && chat.Id > 0x2000)))
+            var id = this.m_chatId;
+            if (id == 0)
+                return;
+
+            if (chat.Id == ChatIds.Tell_Recive)
             {
-                bool botMessage = false;
-                var sender = chat.User;
-
-                if (this.m_client.ClientUserName != null && this.m_client.ClientUserName == chat.User)
+                if (this.m_user.ContainsFFName(chat.User))
+                    this.m_client.SendMessage(new Chat(ChatIds.Tell_Send, chat.User, this.GetCurrentUserStr()));
+            }
+            else if ((chat.Id == id || (id == ChatIds.FreeCompany && (chat.Id == ChatIds.FCLogin || chat.Id == ChatIds.FCNotice))))
+            {
+                if (this.m_client.ClientUserName == null || this.m_client.ClientUserName != chat.User)
                 {
-                    var match = RegTele2Client.Match(chat.Text);
-                    if (match.Success)
+                    this.m_user.Foreach(le =>
                     {
-                        botMessage = true;
-                        chat = new Chat(0, match.Groups[1].Value, match.Groups[2].Value);
-                    }
-                    else
-                    {
-                        match = RegBot2Client.Match(chat.Text);
-                        if (match.Success)
+                        if (le.Connected)
                         {
-                            botMessage = true;
-                            chat = new Chat(0, null, chat.Text);
-                            sender = match.Groups[1].Value;
+                            if (!le.Verified && chat.Text.IndexOf(le.VerifyKey, StringComparison.CurrentCultureIgnoreCase) >= 0)
+                            {
+                                le.FFName = chat.User;
+                                le.SetVirified();
+                                return false;
+                            }
+                            else if (le.Verified)
+                            {
+                                this.m_telegram.SendMessage(le, chat.Full, false);
+                            }
                         }
-                    }
+
+                        return true;
+                    });
                 }
-
-                this.m_user.Foreach(user =>
-                {
-                    if (user.Connected)
-                    {
-                        if (!user.Verified && chat.Text.IndexOf(user.VerifyKey, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                        {
-                            user.FFName = chat.User;
-                            user.SetVirified();
-                        }
-                        else if (user.Verified && (!botMessage || (botMessage && user.FFName != sender)))
-                        {
-                            this.m_telegram.SendMessage(user, chat.Full);
-                        }
-                    }
-                });
             }
         }
         
@@ -442,43 +469,110 @@ namespace FFChatBot
             var msg = e.Message;
             Console.WriteLine("T {1} ({0}) : {2}", msg.From.Username, msg.From.Id, msg.Text);
 
-            bool login = e.Message.Text == "/login" || e.Message.Text == "/start";
+            User user = this.m_user.GetUser(msg.From.Id, msg.Chat.Id, msg.From.Username);
 
-            User user = this.m_user.GetUser(msg.From.Id, msg.Chat.Id, msg.From.Username, login);
-
-            if (login)
+            user.ExpandExpires();
+            
+            if (!user.Verified)
             {
-                if (!user.Verified)
+                if (user.VerifyKey == null)
                 {
-                    user.Connected = true;
                     user.VerifyKey = "ff_" + Utility.GetRandomString(5);
-                    this.m_telegram.SendMessage(user, "verified key : " + user.VerifyKey);
+                    this.m_telegram.SendMessage(user, "캐릭터 이름 확인 겸 인증 절차입니다.\n아래 문자를 게임 채팅에 입력해주세요. (대소문자 구별 안함)\n`" + user.VerifyKey + "`", true);
                 }
-                else
-                {
-                    user.Connected = true;
-                    user.ExpandExpires();
-                }
-            }
-            else if (msg.Text == "/end")
-            {
-                if (user != null)
-                    user.Connected = false;
             }
             else
             {
-                if (user != null && user.Verified && user.Connected)
+                if (msg.Text == "/end")
+                    user.Connected = false;
+
+                else if (user.Verified)
                 {
-                    user.ExpandExpires();
-                    
-                    this.m_client.SendMessage(new Chat(this.m_chatId, user.FFName, msg.Text));
+                    if (msg.Text == "/start")
+                    { }
+
+                    else if (msg.Text == "/user")
+                        this.m_telegram.SendMessage(user, GetCurrentUserStr(), false);
+                    else
+                    {
+                        user.ExpandExpires();
+
+                        this.m_client.SendMessage(new Chat(this.m_chatId, user.FFName, msg.Text));
+
+                        var chat = new Chat(this.m_chatId, "`" + user.FFName + "`", msg.Text);
+                        this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, true), user, true);
+                    }
                 }
             }
+        }
+
+        private string GetCurrentUserStr()
+        {
+            var sb = new StringBuilder("현재 텔레그램 접속자\n");
+
+            var lst = this.m_user.GetUsersConnected();
+            if (lst != null)
+            {
+                for (int i = 0; i < lst.Length; ++i)
+                {
+                    sb.Append(lst[i].FFName);
+                    sb.Append(' ');
+                }
+            }
+
+            return sb.ToString().Trim();
         }
 
         private void btnExpires_Click(object sender, EventArgs e)
         {
             this.m_user.ConnectionExpires = (int)this.nudExpires.Value;
+        }
+
+        private void btnClientShow_Click(object sender, EventArgs e)
+        {
+            NativeMethods.ShowWindow(this.m_client.ClientWindow, NativeMethods.WindowShowStyle.Show);
+        }
+
+        private void btnClientHide_Click(object sender, EventArgs e)
+        {
+            NativeMethods.ShowWindow(this.m_client.ClientWindow, NativeMethods.WindowShowStyle.Hide);
+        }
+
+        private void btnGoTray_Click(object sender, EventArgs e)
+        {
+            this.Hide();
+            this.ntf.Visible = true;
+        }
+
+        private void ntf_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            this.Show();
+            this.Select();
+            this.ntf.Visible = false;
+        }
+
+        private static class NativeMethods
+        {
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool ShowWindow(IntPtr hWnd, WindowShowStyle nCmdShow);
+
+            public enum WindowShowStyle : uint
+            {
+                Hide = 0,
+                ShowNormal = 1,
+                ShowMinimized = 2,
+                ShowMaximized = 3,
+                Maximize = 3,
+                ShowNormalNoActivate = 4,
+                Show = 5,
+                Minimize = 6,
+                ShowMinNoActivate = 7,
+                ShowNoActivate = 8,
+                Restore = 9,
+                ShowDefault = 10,
+                ForceMinimized = 11
+            }
         }
     }
 }

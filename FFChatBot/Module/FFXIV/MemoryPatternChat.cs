@@ -4,17 +4,17 @@
     {
         public MemoryPatternChat(string pattern, long[] start, long[] end, long[] lenStart, long[] lenEnd)
         {
-            this.Pattern         = pattern;
-            this.ChatLogStart    = start;
-            this.ChatLogEnd      = end;
-            this.ChatLogLenStart = lenStart;
-            this.ChatLogLenEnd   = lenEnd;
+            this.Pattern  = pattern;
+            this.Start    = start;
+            this.End      = end;
+            this.LenStart = lenStart;
+            this.LenEnd   = lenEnd;
         }
 
-        public string Pattern           { get; private set; }
-        public long[] ChatLogStart      { get; private set; }
-        public long[] ChatLogEnd        { get; private set; }
-        public long[] ChatLogLenStart   { get; private set; }
-        public long[] ChatLogLenEnd     { get; private set; }
+        public string   Pattern     { get; private set; }
+        public long[]   Start       { get; private set; }
+        public long[]   End         { get; private set; }
+        public long[]   LenStart    { get; private set; }
+        public long[]   LenEnd      { get; private set; }
     }
 }

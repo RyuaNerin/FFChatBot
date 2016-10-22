@@ -100,23 +100,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FFData\action.cs" />
-    <Compile Include="FFData\buddyaction.cs" />
-    <Compile Include="FFData\classjob.cs" />
-    <Compile Include="FFData\companion.cs" />
-    <Compile Include="FFData\completion.cs" />
-    <Compile Include="FFData\craftaction.cs" />
-    <Compile Include="FFData\generalaction.cs" />
-    <Compile Include="FFData\guardiandeity.cs" />
-    <Compile Include="FFData\maincommand.cs" />
-    <Compile Include="FFData\mount.cs" />
-    <Compile Include="FFData\pet.cs" />
-    <Compile Include="FFData\petaction.cs" />
-    <Compile Include="FFData\race.cs" />
-    <Compile Include="FFData\textcommand.cs" />
-    <Compile Include="FFData\tribe.cs" />
-    <Compile Include="FFData\weather.cs" />
-    <Compile Include="FFData\__.cs" />
+    <Compile Include="FFData\Completion.cs" />
     <Compile Include="Module\ConnectionList.cs" />
     <Compile Include="Module\TelegramModule.cs" />
     <Compile Include="Module\FFXIV\Chat.cs" />
@@ -131,15 +115,42 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Module\FFXIV\FFXIVClient.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
     <Compile Include="RyuaNerin\ErrorTrace.cs" />
     <Compile Include="RyuaNerin\LatestRelease.cs" />
     <Compile Include="Utility.cs" />
     <EmbeddedResource Include="frmMain.resx">
       <DependentUpon>frmMain.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <None Include="FFData\Resources\action.exh_ko.csv" />
+    <None Include="FFData\Resources\buddyaction.exh_ko.csv" />
+    <None Include="FFData\Resources\classjob.exh_ko.csv" />
+    <None Include="FFData\Resources\companion.exh_ko.csv" />
+    <None Include="FFData\Resources\completion.exh_ko.csv" />
+    <None Include="FFData\Resources\craftaction.exh_ko.csv" />
+    <None Include="FFData\Resources\generalaction.exh_ko.csv" />
+    <None Include="FFData\Resources\guardiandeity.exh_ko.csv" />
+    <None Include="FFData\Resources\index.csv" />
+    <None Include="FFData\Resources\maincommand.exh_ko.csv" />
+    <None Include="FFData\Resources\mount.exh_ko.csv" />
+    <None Include="FFData\Resources\pet.exh_ko.csv" />
+    <None Include="FFData\Resources\petaction.exh_ko.csv" />
+    <None Include="FFData\Resources\placename.exh_ko.csv" />
+    <None Include="FFData\Resources\race.exh_ko.csv" />
+    <None Include="FFData\Resources\textcommand.exh_ko.csv" />
+    <None Include="FFData\Resources\tribe.exh_ko.csv" />
+    <None Include="FFData\Resources\weather.exh_ko.csv" />
     <None Include="packages.config" />
     <None Include="Properties\app.manifest" />
   </ItemGroup>

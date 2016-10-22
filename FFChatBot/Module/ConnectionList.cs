@@ -19,18 +19,21 @@ namespace FFChatBot.Module
     {
         public User(UserList list, int userId)
         {
-            this.m_list = list;
-            this.m_teleUserId = userId;
-            this.m_connectionExpires = DateTime.UtcNow.AddMinutes(3);
-            this.m_connected = true;
+            this.m_list         = list;
+            this.m_teleUserId   = userId;
+            this.m_expires      = DateTime.UtcNow.AddMinutes(3);
+            this.m_connected    = true;
         }
-        public User(UserList list, int userId, string username, string ffxiv)
+        public User(UserList list, int userId, string username, long chatId, string ffxiv, DateTime expires)
         {
-            this.m_list = list;
-            this.m_teleUserId = userId;
+            this.m_list         = list;
+            this.m_teleUserId   = userId;
             this.m_teleUsername = username;
-            this.FFName = ffxiv;
-            this.m_verified = true;
+            this.TeleChatId     = chatId;
+            this.FFName         = ffxiv;
+            this.m_verified     = true;
+            this.m_expires      = expires;
+            this.m_connected = chatId != 0 && DateTime.UtcNow < expires;
         }
 
         private readonly UserList m_list;
@@ -45,17 +48,19 @@ namespace FFChatBot.Module
             set
             {
                 this.m_teleUsername = value;
+
                 this.m_list.UserUpdated(this);
             }
         }
+
         public long TeleChatId { get; set; }
 
         public string FFName { get; set; }
 
         public string VerifyKey { get; set; }
 
-        private DateTime m_connectionExpires;
-        public DateTime ConnectionExpires { get { return this.m_connectionExpires; } }
+        private DateTime m_expires;
+        public DateTime Expires { get { return this.m_expires; } }
 
         private volatile bool m_connected;
         public bool Connected
@@ -84,7 +89,7 @@ namespace FFChatBot.Module
         public void SetVirified()
         {
             this.m_verified = true;
-            this.m_connectionExpires = DateTime.UtcNow.AddMinutes(this.m_list.ConnectionExpires);
+            this.m_expires = DateTime.UtcNow.AddMinutes(this.m_list.ConnectionExpires);
 
             this.m_list.Save();
             this.m_list.UserConnected(this);
@@ -92,14 +97,14 @@ namespace FFChatBot.Module
 
         public void ExpandExpires()
         {
-            this.m_connectionExpires = DateTime.UtcNow.AddMinutes(this.m_list.ConnectionExpires);
+            this.m_expires = DateTime.UtcNow.AddMinutes(!this.m_verified ? 3 : this.m_list.ConnectionExpires);
             this.m_list.UserUpdated(this);
         }
     }
 
     internal class UserList
     {
-        private const string SettingFileName = "ffxivchatbot.lst";
+        private const string SettingFileName = "ffchatbot.lst";
 
         private readonly List<User> m_lst = new List<User>();
 
@@ -130,10 +135,24 @@ namespace FFChatBot.Module
                     while ((line = reader.ReadLine()) != null)
                     {
                         split = line.Split('\t');
-                        if (split.Length != 3)
-                            continue;
 
-                        this.m_lst.Add(new User(this, int.Parse(split[0]), split[1], split[2]));
+                        if (split.Length == 5)
+                            this.m_lst.Add(new User(
+                                this,
+                                int.Parse(split[0]),
+                                split[1],
+                                long.Parse(split[2]),
+                                split[3],
+                                DateTime.FromBinary(long.Parse(split[4]))));
+
+                        else if (split.Length == 3)
+                            this.m_lst.Add(new User(
+                                this,
+                                int.Parse(split[0]),
+                                split[1],
+                                0,
+                                split[2],
+                                DateTime.UtcNow));
                     }
                 }
             }
@@ -144,7 +163,32 @@ namespace FFChatBot.Module
             Task.Factory.StartNew(new Action(this.ClearWorker));
         }
 
-        public User GetUser(int userId, long chatId, string userName, bool createNew)
+        public void Save()
+        {
+            lock (this.m_lst)
+            {
+                using (var writer = new StreamWriter(SettingFileName, false, Encoding.UTF8))
+                {
+                    User user;
+                    for (int i = 0; i < this.m_lst.Count; ++i)
+                    {
+                        user = this.m_lst[i];
+                        if (user.Verified)
+                            writer.WriteLine(
+                                "{0}\t{1}\t{2}\t{3}\t{4}",
+                                user.TeleUserId,
+                                user.TeleUsername,
+                                user.Connected ? user.TeleChatId : 0,
+                                user.FFName,
+                                user.Expires.ToBinary());
+                    }
+
+                    writer.Flush();
+                }
+            }
+        }
+
+        public User GetUser(int userId, long chatId, string userName)
         {
             User user;
 
@@ -155,6 +199,7 @@ namespace FFChatBot.Module
                     user = this.m_lst[i];
                     if (user.TeleUserId == userId)
                     {
+                        user.Connected = true;
                         user.TeleUsername = userName;
                         user.TeleChatId = chatId;
 
@@ -164,21 +209,40 @@ namespace FFChatBot.Module
                     }
                 }
 
-                if (createNew)
-                {
-                    user = new User(this, userId);
-                    user.TeleChatId = chatId;
+                user = new User(this, userId);
 
-                    this.m_lst.Add(user);
+                this.m_lst.Add(user);
+                if (this.OnUserAdded != null)
+                    this.OnUserAdded(user);
 
-                    if (this.OnUserAdded != null)
-                        this.OnUserAdded(user);
+                user.Connected = true;
+                user.TeleUsername = userName;
+                user.TeleChatId = chatId;
 
-                    return user;
-                }
+                return user;
             }
+        }
 
-            return null;
+        public User[] GetUsersConnected()
+        {
+            var lst = new List<User>();
+
+            lock (this.m_lst)
+                for (int i = 0; i < this.m_lst.Count; ++i)
+                    if (this.m_lst[i].Connected && this.m_lst[i].Verified)
+                        lst.Add(this.m_lst[i]);
+
+            return lst.ToArray();
+        }
+
+        public bool ContainsFFName(string ffname)
+        {
+            lock (this.m_lst)
+                for (int i = 0; i < this.m_lst.Count; ++i)
+                    if (this.m_lst[i].FFName == ffname)
+                        return true;
+
+            return false;
         }
 
         public void UserUpdated(User user)
@@ -227,8 +291,8 @@ namespace FFChatBot.Module
                     {
                         user = this.m_lst[index];
 
-                        if (( user.Connected && user.ConnectionExpires < DateTime.UtcNow) ||
-                            (!user.Connected && DateTime.UtcNow <= user.ConnectionExpires))
+                        if (( user.Connected && user.Expires < DateTime.UtcNow) ||
+                            (!user.Connected && DateTime.UtcNow <= user.Expires))
                         {
                             user.Connected = false;
                             
@@ -253,30 +317,26 @@ namespace FFChatBot.Module
             }
         }
 
-        public void Save()
+        public void Foreach(Action<User> action, User user, bool verified)
         {
+            User u;
             lock (this.m_lst)
             {
-                using (var writer = new StreamWriter(SettingFileName, false, Encoding.UTF8))
+                for (int index = 0; index < this.m_lst.Count; ++index)
                 {
-                    User user;
-                    for (int i = 0; i < this.m_lst.Count; ++i)
-                    {
-                        user = this.m_lst[i];
-                        if (user.Verified)
-                            writer.WriteLine("{0}\t{1}\t{2}", user.TeleUserId, user.TeleUsername, user.FFName);
-                    }
-
-                    writer.Flush();
+                    u = this.m_lst[index];
+                    if (u != user && u.Connected && (!verified || u.Verified))
+                        action(u);
                 }
             }
         }
 
-        public void Foreach(Action<User> action)
+        public void Foreach(Func<User, bool> action)
         {
             lock (this.m_lst)
                 for (int index = 0; index < this.m_lst.Count; ++index)
-                    action(this.m_lst[index]);
+                    if (!action(this.m_lst[index]))
+                        return;
         }
     }
 }

@@ -38,13 +38,14 @@
             this.cmbChat = new System.Windows.Forms.ComboBox();
             this.btnChatSelect = new System.Windows.Forms.Button();
             this.lblChat = new System.Windows.Forms.Label();
-            this.btnEnableT2F = new System.Windows.Forms.Button();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.lblTelegramBotName = new System.Windows.Forms.Label();
             this.btnTelegramStop = new System.Windows.Forms.Button();
             this.btnTelegramStart = new System.Windows.Forms.Button();
             this.txtTelegramKey = new System.Windows.Forms.TextBox();
             this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.textBox1 = new System.Windows.Forms.TextBox();
+            this.button1 = new System.Windows.Forms.Button();
             this.btnDisconnect = new System.Windows.Forms.Button();
             this.btnUserDelete = new System.Windows.Forms.Button();
             this.lstUser = new System.Windows.Forms.ListView();
@@ -59,10 +60,16 @@
             this.label2 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.nudTTFMacroNum = new System.Windows.Forms.NumericUpDown();
+            this.btnEnableT2F = new System.Windows.Forms.Button();
             this.groupBox5 = new System.Windows.Forms.GroupBox();
             this.btnExpires = new System.Windows.Forms.Button();
             this.label4 = new System.Windows.Forms.Label();
             this.nudExpires = new System.Windows.Forms.NumericUpDown();
+            this.btnGoTray = new System.Windows.Forms.Button();
+            this.ntf = new System.Windows.Forms.NotifyIcon(this.components);
+            this.btnClientShow = new System.Windows.Forms.Button();
+            this.btnClientHide = new System.Windows.Forms.Button();
+            this.btnClientVisible = new System.Windows.Forms.GroupBox();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -71,6 +78,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudTTFMacroNum)).BeginInit();
             this.groupBox5.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudExpires)).BeginInit();
+            this.btnClientVisible.SuspendLayout();
             this.SuspendLayout();
             // 
             // groupBox1
@@ -164,16 +172,6 @@
             this.lblChat.Text = "현재 설정 :";
             this.lblChat.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
-            // btnEnableT2F
-            // 
-            this.btnEnableT2F.Location = new System.Drawing.Point(9, 79);
-            this.btnEnableT2F.Name = "btnEnableT2F";
-            this.btnEnableT2F.Size = new System.Drawing.Size(57, 30);
-            this.btnEnableT2F.TabIndex = 6;
-            this.btnEnableT2F.Text = "적용";
-            this.btnEnableT2F.UseVisualStyleBackColor = true;
-            this.btnEnableT2F.Click += new System.EventHandler(this.btnEnableT2F_Click);
-            // 
             // groupBox3
             // 
             this.groupBox3.Controls.Add(this.lblTelegramBotName);
@@ -226,21 +224,40 @@
             // 
             // groupBox4
             // 
+            this.groupBox4.Controls.Add(this.textBox1);
+            this.groupBox4.Controls.Add(this.button1);
             this.groupBox4.Controls.Add(this.btnDisconnect);
             this.groupBox4.Controls.Add(this.btnUserDelete);
             this.groupBox4.Controls.Add(this.lstUser);
             this.groupBox4.Location = new System.Drawing.Point(12, 193);
             this.groupBox4.Name = "groupBox4";
-            this.groupBox4.Size = new System.Drawing.Size(439, 294);
+            this.groupBox4.Size = new System.Drawing.Size(341, 294);
             this.groupBox4.TabIndex = 4;
             this.groupBox4.TabStop = false;
             this.groupBox4.Text = "등록된 ID";
             // 
+            // textBox1
+            // 
+            this.textBox1.Location = new System.Drawing.Point(6, 256);
+            this.textBox1.Name = "textBox1";
+            this.textBox1.Size = new System.Drawing.Size(124, 23);
+            this.textBox1.TabIndex = 4;
+            // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(136, 256);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(56, 23);
+            this.button1.TabIndex = 3;
+            this.button1.Text = "설정";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
+            // 
             // btnDisconnect
             // 
-            this.btnDisconnect.Location = new System.Drawing.Point(261, 256);
+            this.btnDisconnect.Location = new System.Drawing.Point(198, 256);
             this.btnDisconnect.Name = "btnDisconnect";
-            this.btnDisconnect.Size = new System.Drawing.Size(91, 32);
+            this.btnDisconnect.Size = new System.Drawing.Size(72, 32);
             this.btnDisconnect.TabIndex = 2;
             this.btnDisconnect.Text = "연결 끊기";
             this.btnDisconnect.UseVisualStyleBackColor = true;
@@ -248,9 +265,9 @@
             // 
             // btnUserDelete
             // 
-            this.btnUserDelete.Location = new System.Drawing.Point(358, 256);
+            this.btnUserDelete.Location = new System.Drawing.Point(276, 256);
             this.btnUserDelete.Name = "btnUserDelete";
-            this.btnUserDelete.Size = new System.Drawing.Size(75, 32);
+            this.btnUserDelete.Size = new System.Drawing.Size(59, 32);
             this.btnUserDelete.TabIndex = 1;
             this.btnUserDelete.Text = "삭제";
             this.btnUserDelete.UseVisualStyleBackColor = true;
@@ -267,7 +284,7 @@
             this.lstUser.HideSelection = false;
             this.lstUser.Location = new System.Drawing.Point(6, 22);
             this.lstUser.Name = "lstUser";
-            this.lstUser.Size = new System.Drawing.Size(427, 228);
+            this.lstUser.Size = new System.Drawing.Size(329, 228);
             this.lstUser.StateImageList = this.imgUsers;
             this.lstUser.TabIndex = 0;
             this.lstUser.UseCompatibleStateImageBehavior = false;
@@ -376,6 +393,16 @@
             0,
             0});
             // 
+            // btnEnableT2F
+            // 
+            this.btnEnableT2F.Location = new System.Drawing.Point(9, 79);
+            this.btnEnableT2F.Name = "btnEnableT2F";
+            this.btnEnableT2F.Size = new System.Drawing.Size(57, 30);
+            this.btnEnableT2F.TabIndex = 6;
+            this.btnEnableT2F.Text = "적용";
+            this.btnEnableT2F.UseVisualStyleBackColor = true;
+            this.btnEnableT2F.Click += new System.EventHandler(this.btnEnableT2F_Click);
+            // 
             // groupBox5
             // 
             this.groupBox5.Controls.Add(this.btnExpires);
@@ -401,7 +428,7 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(55, 24);
+            this.label4.Location = new System.Drawing.Point(59, 27);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(19, 15);
             this.label4.TabIndex = 1;
@@ -411,7 +438,7 @@
             // 
             this.nudExpires.Location = new System.Drawing.Point(6, 22);
             this.nudExpires.Maximum = new decimal(new int[] {
-            60,
+            1440,
             0,
             0,
             0});
@@ -421,7 +448,7 @@
             0,
             0});
             this.nudExpires.Name = "nudExpires";
-            this.nudExpires.Size = new System.Drawing.Size(43, 23);
+            this.nudExpires.Size = new System.Drawing.Size(47, 23);
             this.nudExpires.TabIndex = 0;
             this.nudExpires.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.nudExpires.Value = new decimal(new int[] {
@@ -430,11 +457,61 @@
             0,
             0});
             // 
+            // btnGoTray
+            // 
+            this.btnGoTray.Location = new System.Drawing.Point(359, 446);
+            this.btnGoTray.Name = "btnGoTray";
+            this.btnGoTray.Size = new System.Drawing.Size(92, 41);
+            this.btnGoTray.TabIndex = 7;
+            this.btnGoTray.Text = "트레이로 이동";
+            this.btnGoTray.UseVisualStyleBackColor = true;
+            this.btnGoTray.Click += new System.EventHandler(this.btnGoTray_Click);
+            // 
+            // ntf
+            // 
+            this.ntf.Text = "Fafagram";
+            this.ntf.Visible = true;
+            this.ntf.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.ntf_MouseDoubleClick);
+            // 
+            // btnClientShow
+            // 
+            this.btnClientShow.Location = new System.Drawing.Point(6, 22);
+            this.btnClientShow.Name = "btnClientShow";
+            this.btnClientShow.Size = new System.Drawing.Size(80, 30);
+            this.btnClientShow.TabIndex = 9;
+            this.btnClientShow.Text = "보이기";
+            this.btnClientShow.UseVisualStyleBackColor = true;
+            this.btnClientShow.Click += new System.EventHandler(this.btnClientShow_Click);
+            // 
+            // btnClientHide
+            // 
+            this.btnClientHide.Location = new System.Drawing.Point(6, 58);
+            this.btnClientHide.Name = "btnClientHide";
+            this.btnClientHide.Size = new System.Drawing.Size(80, 30);
+            this.btnClientHide.TabIndex = 10;
+            this.btnClientHide.Text = "숨기기";
+            this.btnClientHide.UseVisualStyleBackColor = true;
+            this.btnClientHide.Click += new System.EventHandler(this.btnClientHide_Click);
+            // 
+            // btnClientVisible
+            // 
+            this.btnClientVisible.Controls.Add(this.btnClientShow);
+            this.btnClientVisible.Controls.Add(this.btnClientHide);
+            this.btnClientVisible.Enabled = false;
+            this.btnClientVisible.Location = new System.Drawing.Point(359, 193);
+            this.btnClientVisible.Name = "btnClientVisible";
+            this.btnClientVisible.Size = new System.Drawing.Size(92, 94);
+            this.btnClientVisible.TabIndex = 11;
+            this.btnClientVisible.TabStop = false;
+            this.btnClientVisible.Text = "파판";
+            // 
             // frmMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(463, 499);
+            this.Controls.Add(this.btnClientVisible);
+            this.Controls.Add(this.btnGoTray);
             this.Controls.Add(this.groupBox5);
             this.Controls.Add(this.grbTTF);
             this.Controls.Add(this.groupBox4);
@@ -454,12 +531,14 @@
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
             this.groupBox4.ResumeLayout(false);
+            this.groupBox4.PerformLayout();
             this.grbTTF.ResumeLayout(false);
             this.grbTTF.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudTTFMacroNum)).EndInit();
             this.groupBox5.ResumeLayout(false);
             this.groupBox5.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudExpires)).EndInit();
+            this.btnClientVisible.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -469,36 +548,43 @@
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.GroupBox groupBox3;
-        private System.Windows.Forms.Button btnTelegramStop;
-        private System.Windows.Forms.Button btnTelegramStart;
         private System.Windows.Forms.TextBox txtTelegramKey;
-        private System.Windows.Forms.Button btnChatSelect;
         private System.Windows.Forms.GroupBox groupBox4;
         private System.Windows.Forms.Button btnUserDelete;
         private System.Windows.Forms.ColumnHeader lstUser0;
         private System.Windows.Forms.ColumnHeader lstUser1;
-        internal System.Windows.Forms.Button btnClientSelect;
         internal System.Windows.Forms.Button btnClientRefresh;
         internal System.Windows.Forms.ComboBox cmbClient;
         private System.Windows.Forms.ComboBox cmbChat;
         private System.Windows.Forms.ColumnHeader lstUser2;
-        private System.Windows.Forms.Label lblChat;
-        private System.Windows.Forms.Button btnEnableT2F;
         private System.Windows.Forms.ListView lstUser;
         private System.Windows.Forms.GroupBox grbTTF;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.NumericUpDown nudTTFMacroNum;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.Button btnDisableT2F;
         private System.Windows.Forms.TextBox txtTTFKey;
         private System.Windows.Forms.ImageList imgUsers;
         private System.Windows.Forms.Button btnDisconnect;
-        private System.Windows.Forms.Label lblTelegramBotName;
         private System.Windows.Forms.GroupBox groupBox5;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.NumericUpDown nudExpires;
+        private System.Windows.Forms.Button btnDisableT2F;
+        private System.Windows.Forms.Button btnEnableT2F;
+        internal System.Windows.Forms.Button btnClientSelect;
+        private System.Windows.Forms.Button btnChatSelect;
+        private System.Windows.Forms.Label lblChat;
+        private System.Windows.Forms.Label lblTelegramBotName;
+        private System.Windows.Forms.Button btnTelegramStop;
+        private System.Windows.Forms.Button btnTelegramStart;
         private System.Windows.Forms.Button btnExpires;
+        private System.Windows.Forms.Button btnGoTray;
+        private System.Windows.Forms.NotifyIcon ntf;
+        private System.Windows.Forms.Button btnClientShow;
+        private System.Windows.Forms.Button btnClientHide;
+        private System.Windows.Forms.GroupBox btnClientVisible;
+        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.TextBox textBox1;
     }
 }
 

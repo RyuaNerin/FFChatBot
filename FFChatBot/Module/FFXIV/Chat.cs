@@ -4,7 +4,7 @@ namespace FFChatBot.Module.FFXIV
 {
     internal class Chat
     {
-        public Chat(int id, string user, string text)
+        public Chat(ChatIds id, string user, string text)
         {
             this.Id = id;
             this.User = user;
@@ -12,7 +12,7 @@ namespace FFChatBot.Module.FFXIV
             this.Full = string.IsNullOrWhiteSpace(user) ? text : string.Format("<{0}> {1}", user, text);
         }
 
-        public int Id { get; private set; }
+        public ChatIds Id { get; private set; }
         public string User { get; private set; }
         public string Text  { get; private set; }
         public string Full  { get; private set; }

@@ -17,38 +17,54 @@ namespace FFChatBot.Module.FFXIV
     internal delegate void ClientSelectedEvent(string client, bool success);
     internal delegate void MacroEnabledEvent(bool success);
 
+    internal enum ChatIds : int
+    {
+        LinkShell_1 = 0x0010,
+        LinkShell_2 = 0x0011,
+        LinkShell_3 = 0x0012,
+        LinkShell_4 = 0x0013,
+        LinkShell_5 = 0x0014,
+        LinkShell_6 = 0x0015,
+        LinkShell_7 = 0x0016,
+        LinkShell_8 = 0x0017,
+        FreeCompany = 0x0018,
+        FCNotice    = 0x2245,
+        FCLogin     = 0x2246,
+        Tell_Send   = 0x000c,
+        Tell_Recive = 0x000d
+    }
+
     internal class FFXIVModule
     {
         public const int MacroSearchTimeout = 30;
 
-        public readonly static IDictionary<int, string> LogIDs = new Dictionary<int, string>
+        public readonly static IDictionary<ChatIds, string> LogIDs = new Dictionary<ChatIds, string>
         {
-#if DEBUG
-		    { 0x000A, "링 1" },
-#endif
-		    { 0x0010, "링 1" },
-		    { 0x0011, "링 2" },
-		    { 0x0012, "링 3" },
-		    { 0x0013, "링 4" },
-		    { 0x0014, "링 5" },
-		    { 0x0015, "링 6" },
-		    { 0x0016, "링 7" },
-		    { 0x0017, "링 8" },
-		    { 0x0018, "자유부대" },
-		    { 0x2245, "부대알림" },
-		    { 0x2246, "부대원 접속" },
+		    { ChatIds.LinkShell_1, "링 1" },
+		    { ChatIds.LinkShell_2, "링 2" },
+		    { ChatIds.LinkShell_3, "링 3" },
+		    { ChatIds.LinkShell_4, "링 4" },
+		    { ChatIds.LinkShell_5, "링 5" },
+		    { ChatIds.LinkShell_6, "링 6" },
+		    { ChatIds.LinkShell_7, "링 7" },
+		    { ChatIds.LinkShell_8, "링 8" },
+		    { ChatIds.FreeCompany, "자유부대" },
+		    { ChatIds.FCNotice,    "부대알림" },
+		    { ChatIds.FCLogin,     "부대원 접속" },
+		    { ChatIds.Tell_Recive, "귓속말 옴" },
         };
-        public readonly static IDictionary<int, string> LogCommand = new Dictionary<int, string>
+        public readonly static IDictionary<ChatIds, string> LogCommand = new Dictionary<ChatIds, string>
         {
-		    { 0x0010, "/링1 " },
-		    { 0x0011, "/링2 " },
-		    { 0x0012, "/링3 " },
-		    { 0x0013, "/링4 " },
-		    { 0x0014, "/링5 " },
-		    { 0x0015, "/링6 " },
-		    { 0x0016, "/링7 " },
-		    { 0x0017, "/링8 " },
-		    { 0x0018, "/자 " },
+		    { ChatIds.LinkShell_1, "/l1 " },
+		    { ChatIds.LinkShell_2, "/l2 " },
+		    { ChatIds.LinkShell_3, "/l3 " },
+		    { ChatIds.LinkShell_4, "/l4 " },
+		    { ChatIds.LinkShell_5, "/l5 " },
+		    { ChatIds.LinkShell_6, "/l6 " },
+		    { ChatIds.LinkShell_7, "/l7 " },
+		    { ChatIds.LinkShell_8, "/l8 " },
+		    { ChatIds.FreeCompany, "/fc " },
+		    { ChatIds.Tell_Send, "/t " },
         };
 
         // 3.15
@@ -108,6 +124,8 @@ namespace FFChatBot.Module.FFXIV
         private volatile string m_clientUsername;
         public string ClientUserName { get { return this.m_clientUsername; } }
 
+        public IntPtr ClientWindow { get { return this.m_ffxivMainWnd; } }
+
         private volatile bool m_ttfEnabled;
         private int m_ttfMacro;
         private Keys m_ttfKey;
@@ -133,13 +151,13 @@ namespace FFChatBot.Module.FFXIV
             lock (this.m_toClient)
                 this.m_toClient.Clear();
 
-            if (raiseEvent && this.m_ffxivSelected)
+            if (this.m_ffxivSelected)
             {
                 this.m_ffxivSelected = false;
                 this.m_ffxiv.Dispose();
                 this.m_ffxiv = null;
 
-                if (this.OnClientExited != null)
+                if (raiseEvent && this.OnClientExited != null)
                     this.OnClientExited();
             }
         }
@@ -148,6 +166,7 @@ namespace FFChatBot.Module.FFXIV
         {
             var processes = new List<Process>();
             processes.AddRange(Process.GetProcessesByName("ffxiv"));
+            processes.AddRange(Process.GetProcessesByName("ffxiv_dx9"));
             processes.AddRange(Process.GetProcessesByName("ffxiv_dx11"));
 
             if (this.OnClientFound != null)
@@ -167,17 +186,20 @@ namespace FFChatBot.Module.FFXIV
 
             try
             {
-                m_ffxiv = Process.GetProcessById(int.Parse(client.Substring(client.IndexOf(':') + 1)));
-                m_ffxiv.Exited += (s, e) => this.Clear(true);
-                m_isX64 = !NativeMethods.IsX86Process(m_ffxiv.Handle);
-                m_ffxivHandle = NativeMethods.OpenProcess(0x001F0FFF, false, m_ffxiv.Id); // ALL
-                
-                m_ffxivMainWnd = this.m_ffxiv.MainWindowHandle;
+                this.m_ffxiv = Process.GetProcessById(int.Parse(client.Substring(client.IndexOf(':') + 1)));
+                this.m_ffxiv.Exited += (s, e) => this.Clear(true);
+                this.m_isX64 = !NativeMethods.IsX86Process(m_ffxiv.Handle);
+                this.m_ffxivHandle = NativeMethods.OpenProcess(NativeMethods.ProcessAccessFlags.All, false, m_ffxiv.Id); // ALL
 
-                m_chatPattern  = m_isX64 ? ChatPatternX64 : ChatPatternX86;
-                m_chatLog = NativeMethods.ScanACT(this.m_ffxiv, m_chatPattern.Pattern, m_isX64);
+                //this.m_ffxivMainWnd = this.m_ffxiv.MainWindowHandle;
+                this.m_ffxivMainWnd = NativeMethods.FindWindow("FFXIVGAME", null, m_ffxiv.Id);
 
-                if (m_chatLog != IntPtr.Zero)
+                this.m_macroPattern = this.m_isX64 ? MacroPAtternX64 : MacroPatternX86;
+
+                this.m_chatPattern = this.m_isX64 ? ChatPatternX64 : ChatPatternX86;
+                this.m_chatLog = NativeMethods.ScanACT(this.m_ffxiv, m_chatPattern.Pattern, this.m_isX64);
+
+                if (this.m_chatLog != IntPtr.Zero)
                 {
                     result = true;
                     this.m_readChat.Set();
@@ -196,13 +218,14 @@ namespace FFChatBot.Module.FFXIV
             this.m_ttfMacro = macro;
             this.m_ttfKey = key;
 
-            this.m_macroPattern = m_isX64 ? MacroPAtternX64 : MacroPatternX86;
             Task.Factory.StartNew(this.SetTTFWorker);
         }
 
         private void SetTTFWorker()
         {
             this.m_macro = NativeMethods.ScanAlloc(this.m_ffxivHandle, m_macroPattern.Pattern);
+
+            this.m_macro = this.m_macro + this.m_macroPattern.MacroOffset + this.m_macroPattern.MacroSize * this.m_ttfMacro;
 
             if (this.OnTTFEnabled != null)
                 this.OnTTFEnabled.Invoke(this.m_macro != IntPtr.Zero);
@@ -261,65 +284,52 @@ namespace FFChatBot.Module.FFXIV
             }
         }
 
+        private static byte[] DisableMacroError = Encoding.UTF8.GetBytes("/merror off");
         private void WriteChat(Chat chat)
         {
-            var macroPtr = this.m_macro + this.m_macroPattern.MacroOffset + this.m_macroPattern.MacroSize * this.m_ttfMacro;
-
-            var head = string.Format(chat.User == null ? "{0}" : "{0}<{1}> ", LogCommand[chat.Id], chat.User);
+            var head =
+                chat.Id == ChatIds.Tell_Send
+                ? string.Format("{0}{1} ", LogCommand[chat.Id], chat.User)
+                : string.Format(chat.User == null ? "{0}" : "{0}<{1}> ", LogCommand[chat.Id], chat.User);
 
             var str = chat.Text.Trim();
             var buff = new byte[256];
             byte[] rawStr;
-
-            IntPtr linePtr;
-            IntPtr textPtr;
-
-            IntPtr written;
-            int i;
+            
             int len;
             int writenLine = 0;
             bool writeLine = true;
 
-            for (int line = 0; line < 15; ++line)
             {
-                linePtr = macroPtr + this.m_macroPattern.LineSize * line;
+                len = GetMacroLineLength(this.m_ffxivHandle, this.m_macroPattern, this.m_macro, 0);
+                if (len < DisableMacroError.Length)
+                    return;
 
-                len = NativeMethods.ReadBytes(this.m_ffxivHandle, linePtr + this.m_macroPattern.LenOffset, 1)[0] - 1;
+                CopyAndFill(buff, DisableMacroError, 0x20);
+
+                WriteMacroLine(this.m_ffxivHandle, this.m_macroPattern, this.m_macro, 0, buff, len);
+            }
+            for (int line = 1; line < 15; ++line)
+            {
+                len = GetMacroLineLength(this.m_ffxivHandle, this.m_macroPattern, this.m_macro, line);
                 if (len == 0)
-                    continue;
-
-                textPtr = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_macroPattern.IsX64, linePtr);
-                if (textPtr == IntPtr.Zero)
                     continue;
 
                 if (writeLine)
                 {
                     rawStr = GetText(head, ref str, len);
-
                     if (rawStr == null)
                         return;
 
                     writenLine++;
-
-                    for (i = 0; i < rawStr.Length; ++i)
-                        buff[i] = rawStr[i]; // ' '
-
-                    for (i = rawStr.Length; i < len; ++i)
-                        buff[i] = 0x20; // ' '
+                    CopyAndFill(buff, rawStr, 0x20);
                 }
 
-                NativeMethods.WriteProcessMemory(this.m_ffxivHandle, textPtr, buff, new IntPtr(len), out written);
+                WriteMacroLine(this.m_ffxivHandle, this.m_macroPattern, this.m_macro, line, buff, len);
                 
                 if (writeLine && str.Length == 0)
                 {
-                    rawStr = Encoding.UTF8.GetBytes(LogCommand[chat.Id]);
-
-                    for (i = 0; i < rawStr.Length; ++i)
-                        buff[i] = rawStr[i]; // ' '
-
-                    for (i = rawStr.Length; i < 256; ++i)
-                        buff[i] = 0x20; // ' '
-
+                    Fill(buff, 0x20); // ' '
                     writeLine = false;
                 }
             }
@@ -331,26 +341,92 @@ namespace FFChatBot.Module.FFXIV
             }
         }
 
+        private static void Fill(byte[] desc, byte defaultValue)
+        {
+            int i;
+            for (i = 0; i < desc.Length; ++i)
+                desc[i] = defaultValue;
+        }
+        private static void CopyAndFill(byte[] desc, byte[] src, byte defaultValue)
+        {
+            int i;
+            for (i = 0; i < src.Length; ++i)
+                desc[i] = src[i];
+
+            for (i = src.Length; i < desc.Length; ++i)
+                desc[i] = defaultValue;
+        }
+
+        private static int GetMacroLineLength(IntPtr process, MemoryPatternMacro pattern, IntPtr basePtr, int line)
+        {
+            return NativeMethods.ReadBytes(process, basePtr + pattern.LineSize * line + pattern.LenOffset, 1)[0] - 1;
+        }
+
+        private static void WriteMacroLine(IntPtr process, MemoryPatternMacro pattern, IntPtr basePtr, int line, byte[] data, int len)
+        {
+            var ptr = NativeMethods.ReadPointer(process, pattern.IsX64, basePtr + pattern.LineSize * line);
+            if (ptr == IntPtr.Zero)
+                return;
+
+            IntPtr written = IntPtr.Zero;
+            NativeMethods.WriteProcessMemory(process, ptr, data, new IntPtr(len), out written);
+        }
+
         private static byte[] GetText(string head, ref string str, int len)
+        {
+            return GetText(head, ref str, len, str.Contains(" "));
+        }
+        private static byte[] GetText(string head, ref string str, int len, bool word)
         {
             var headLen = Encoding.UTF8.GetByteCount(head);
 
             if (len < headLen + 5)
                 return null;
 
-            var strArr = str.ToCharArray();
-            var strLen = strArr.Length;
-            while (headLen + Encoding.UTF8.GetByteCount(strArr, 0, strLen) >= len)
-                --strLen;
+            if (word)
+            {
+                var strArr = str.ToCharArray();
+                int index = -1;
 
-            var buff = Encoding.UTF8.GetBytes(head + str.Substring(0, strLen));
+                index = str.IndexOf(' ', index + 1);
+                while (headLen + Encoding.UTF8.GetByteCount(strArr, 0, index) < len)
+                {
+                    index = str.IndexOf(' ', index + 1);
+                    if (index == -1)
+                    {
+                        index = strArr.Length;
+                        break;
+                    }
+                }
 
-            if (str.Length > strLen)
-                str = str.Substring(strLen).Trim();
+                if (index == -1)
+                    return GetText(head, ref str, len, false);
+
+                var buff = Encoding.UTF8.GetBytes(head + str.Substring(0, index));
+
+                if (index + 2 < str.Length)
+                    str = str.Substring(index + 1).Trim();
+                else
+                    str = "";
+
+                return buff;
+            }
             else
-                str = "";
+            {
+                var strArr = str.ToCharArray();
+                var strLen = strArr.Length;
+                while (headLen + Encoding.UTF8.GetByteCount(strArr, 0, strLen) >= len)
+                    --strLen;
 
-            return buff;
+                var buff = Encoding.UTF8.GetBytes(head + str.Substring(0, strLen));
+
+                if (str.Length > strLen)
+                    str = str.Substring(strLen).Trim();
+                else
+                    str = "";
+
+                return buff;
+            }
         }
 
         private static void SendKey(IntPtr hwnd, Keys key)
@@ -381,10 +457,10 @@ namespace FFChatBot.Module.FFXIV
             {
                 this.m_readChat.WaitOne();
 
-                start      = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.ChatLogStart);
-                end        = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.ChatLogEnd);
-                lenStart   = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.ChatLogLenStart);
-                lenEnd     = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.ChatLogLenEnd);
+                start      = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.Start);
+                end        = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.End);
+                lenStart   = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.LenStart);
+                lenEnd     = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.LenEnd);
                 
                 if ((start == IntPtr.Zero || end == IntPtr.Zero) || (lenStart == IntPtr.Zero || lenEnd == IntPtr.Zero))
                     Thread.Sleep(100);
@@ -453,7 +529,7 @@ namespace FFChatBot.Module.FFXIV
         
         private static bool CheckMessage(byte[] rawData)
         {
-            return LogIDs.ContainsKey(BitConverter.ToInt16(rawData, 4));
+            return Enum.IsDefined(typeof(ChatIds), BitConverter.ToInt32(rawData, 4));
         }
 
         private void RaiseEventNewChat(byte[] rawData)
@@ -462,7 +538,7 @@ namespace FFChatBot.Module.FFXIV
                 return;
 
             // Chat Type
-            var type = BitConverter.ToInt16(rawData, 4);
+            var type = (ChatIds)BitConverter.ToInt32(rawData, 4);
             if (!LogIDs.ContainsKey(type))
                 return;
 
@@ -512,7 +588,7 @@ namespace FFChatBot.Module.FFXIV
                         v = rawData[index];
                         nextIndex = index + rawData[index + 1] + 2;
 
-                        if (v == 0x2E || v == 0x27)
+                        if (v == 0x2E || v == 0x27 || v == 0x13)
                         {
                             hasTag = true;
 
@@ -524,7 +600,7 @@ namespace FFChatBot.Module.FFXIV
                                     try
                                     {
                                         completionId = GetValue(rawData, index + 3);
-                                        bytes = FFData.FFData.Table[v][completionId];
+                                        bytes = FFData.Completion.Table[v][completionId];
                                     }
                                     catch
                                     {
@@ -589,7 +665,7 @@ namespace FFChatBot.Module.FFXIV
 
             [DllImport("kernel32.dll")]
             public static extern IntPtr OpenProcess(
-                uint dwDesiredAccess,
+                ProcessAccessFlags dwDesiredAccess,
                 [MarshalAs(UnmanagedType.Bool)]
                 bool bInheritHandle,
                 int dwProcessId);
@@ -622,6 +698,18 @@ namespace FFChatBot.Module.FFXIV
                 IntPtr wParam,
                 IntPtr lParam);
 
+            [DllImport("user32.dll")]
+            private static extern IntPtr FindWindowEx(
+                IntPtr parentHandle,
+                IntPtr childAfter,
+                string className,
+                string windowTitle);
+
+            [DllImport("user32.dll")]
+            static extern uint GetWindowThreadProcessId(IntPtr hWnd,
+                [Out]
+                out int lpdwProcessId);
+
             [StructLayout(LayoutKind.Sequential)]
             public struct SYSTEM_INFO
             {
@@ -647,6 +735,24 @@ namespace FFChatBot.Module.FFXIV
                 public StateEnum State;
                 public AllocationProtectEnum Protect;
                 public TypeEnum Type;
+            }
+
+            [Flags]
+            public enum ProcessAccessFlags : uint
+            {
+                All = 0x001F0FFF,
+                Terminate = 0x00000001,
+                CreateThread = 0x00000002,
+                VirtualMemoryOperation = 0x00000008,
+                VirtualMemoryRead = 0x00000010,
+                VirtualMemoryWrite = 0x00000020,
+                DuplicateHandle = 0x00000040,
+                CreateProcess = 0x000000080,
+                SetQuota = 0x00000100,
+                SetInformation = 0x00000200,
+                QueryInformation = 0x00000400,
+                QueryLimitedInformation = 0x00001000,
+                Synchronize = 0x00100000
             }
 
             public enum AllocationProtectEnum : uint
@@ -683,11 +789,15 @@ namespace FFChatBot.Module.FFXIV
 
             public static bool IsX86Process(IntPtr handle)
             {
-                var OSVersion = Environment.OSVersion.Version;
-                if ((OSVersion.Major == 5 && OSVersion.Minor >= 1) || OSVersion.Major > 5)
+                if (IntPtr.Size == 8)
                 {
                     bool ret;
-                    return NativeMethods.IsWow64Process(handle, out ret) && ret;
+                    try
+                    {
+                        return NativeMethods.IsWow64Process(handle, out ret) && ret;
+                    }
+                    catch
+                    { }
                 }
                 return true;
             }
@@ -885,6 +995,18 @@ namespace FFChatBot.Module.FFXIV
                 NativeMethods.ReadProcessMemory(handle, offset, lpBuffer, new IntPtr(length), out read);
 
                 return lpBuffer;
+            }
+
+            public static IntPtr FindWindow(string className, string windowTitle, int pid)
+            {
+                var hwnd = IntPtr.Zero;
+                int hwndPid;
+
+                while ((hwnd = NativeMethods.FindWindowEx(IntPtr.Zero, hwnd, className, windowTitle)) != IntPtr.Zero)
+                    if (NativeMethods.GetWindowThreadProcessId(hwnd, out hwndPid) != 0 && hwndPid == pid)
+                        return hwnd;
+
+                return IntPtr.Zero;
             }
         }
     }
