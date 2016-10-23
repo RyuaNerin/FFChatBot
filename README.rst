@@ -8,7 +8,7 @@
 
 텔레그램에 올라온 채팅을 파이널판타지14 로 보내줍니다.
 
-:최신 버전: `v2016.10.23.1 <https://github.com/RyuaNerin/FFChatBot/releases/latest>`_
+:최신 버전: `v2016.10.24.1 <https://github.com/RyuaNerin/FFChatBot/releases/latest>`_
 :게임 버전: Final Fantasy XIV KR - 2016.10.04.0000.0000(2167201, ex1:2016.09.21.0000.0000)
 
 유저 사용 방법
