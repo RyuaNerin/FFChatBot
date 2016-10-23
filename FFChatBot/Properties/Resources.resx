@@ -119,28 +119,28 @@
   </resheader>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
   <data name="action_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\action.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\action.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="buddyaction_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\buddyaction.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\buddyaction.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="classjob_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\classjob.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\classjob.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="companion_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\companion.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\companion.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="completion_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\completion.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\completion.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="craftaction_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\FFData\Resources\craftaction.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="generalaction_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\generalaction.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\generalaction.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="guardiandeity_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\guardiandeity.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\guardiandeity.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="index" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\FFData\Resources\index.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
@@ -149,27 +149,27 @@
     <value>..\FFData\Resources\maincommand.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="mount_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\mount.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\mount.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="petaction_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\petaction.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\petaction.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="pet_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\pet.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\pet.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="placename_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\placename.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\placename.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="race_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\race.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\race.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="textcommand_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\FFData\Resources\textcommand.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="tribe_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\tribe.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\tribe.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="weather_exh_ko" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\FFData\Resources\weather.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;ks_c_5601-1987</value>
+    <value>..\FFData\Resources\weather.exh_ko.csv;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
 </root>
