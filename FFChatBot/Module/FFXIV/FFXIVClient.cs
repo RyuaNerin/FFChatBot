@@ -829,17 +829,10 @@ namespace FFChatBot.Module.FFXIV
 
                             if (index != -1)
                             {
-                                IntPtr ptr;
+                                IntPtr ptr = new IntPtr(BitConverter.ToInt32(buff, index + patArray.Length));
+
                                 if (isX64)
-                                {
-                                    ptr = new IntPtr(BitConverter.ToInt32(buff, index + patArray.Length));
                                     ptr = new IntPtr(curPtr.ToInt64() + index + patArray.Length + 4 + ptr.ToInt64());
-                                }
-                                else
-                                {
-                                    ptr = new IntPtr(BitConverter.ToInt32(buff, index + patArray.Length));
-                                    //ptr6 = new IntPtr(ptr6.ToInt64());
-                                }
 
                                 return ptr;
                             }

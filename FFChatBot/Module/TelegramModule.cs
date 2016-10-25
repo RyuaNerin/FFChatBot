@@ -93,10 +93,7 @@ namespace FFChatBot.Module
 
         private void ErrorHandler<T>(Task<T> task)
         {
-            if (task.Exception == null)
-                return;
-
-            Console.WriteLine();
+            return;
         }
     }
 }

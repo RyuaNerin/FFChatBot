@@ -19,7 +19,8 @@ namespace FFChatBot
     {
         private volatile ChatIds m_chatId = 0;
 
-        private readonly IDictionary<User, ListViewItem> m_userItem = new Dictionary<User, ListViewItem>();
+        private readonly Dictionary<User, ListViewItem> m_userItem = new Dictionary<User, ListViewItem>();
+        private readonly List<string> m_userClient = new List<string>();
 
         private readonly TelegramModule m_telegram;
         private readonly FFXIVModule m_client;
@@ -88,8 +89,8 @@ namespace FFChatBot
             {
                 this.m_client.SendMessage(new Chat(this.m_chatId, null, user.FFName + "님이 접속했습니다."));
 
-                var chat = new Chat(this.m_chatId, null, "`" + user.FFName + "`님이 접속했습니다.");
-                this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, true), user, true);
+                var chat = new Chat(this.m_chatId, null, user.FFName + "님이 접속했습니다. (T)");
+                this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, false), user, true);
 
                 this.m_telegram.SendMessage(user, "connected.", false);
             }
@@ -103,8 +104,8 @@ namespace FFChatBot
             {
                 this.m_client.SendMessage(new Chat(this.m_chatId, null, user.FFName + "님이 종료했습니다."));
 
-                var chat = new Chat(this.m_chatId, null, "`" + user.FFName + "`님이 접속했습니다.");
-                this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, true), user, true);
+                var chat = new Chat(this.m_chatId, null, user.FFName + "님이 접속했습니다. (T)");
+                this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, false), user, true);
             }
 
             this.m_telegram.SendMessage(user, "disconnected.", false);
@@ -425,6 +426,8 @@ namespace FFChatBot
             user.SetVirified();
         }
 
+        private static readonly Regex regFCLogin = new Regex("^(.+) 님이 (접속|종료)했습니다.$", RegexOptions.Singleline);
+        private static readonly Regex regBotChat = new Regex("^<[^>]+> .+$|^.+님이 (접속|종료)했습니다.$", RegexOptions.Singleline);
         private void Client_OnNewChat(Chat chat)
         {
             Console.WriteLine("F [{0}] {1}", chat.Id, chat.Full);
@@ -436,11 +439,33 @@ namespace FFChatBot
             if (chat.Id == ChatIds.Tell_Recive)
             {
                 if (this.m_user.ContainsFFName(chat.User))
-                    this.m_client.SendMessage(new Chat(ChatIds.Tell_Send, chat.User, this.GetCurrentUserStr()));
+                    this.m_client.SendMessage(new Chat(ChatIds.Tell_Send, chat.User, this.GetCurrentUserStr(false)));
             }
             else if ((chat.Id == id || (id == ChatIds.FreeCompany && (chat.Id == ChatIds.FCLogin || chat.Id == ChatIds.FCNotice))))
             {
-                if (this.m_client.ClientUserName == null || this.m_client.ClientUserName != chat.User)
+                if (chat.Id == ChatIds.FCLogin)
+                {
+                    var m = regFCLogin.Match(chat.Text);
+                    if (m.Success)
+                    {
+                        var msg  = m.Groups[2].Value;
+                        var name = m.Groups[1].Value;
+
+                        if (msg == "접속")
+                            lock (this.m_userClient)
+                                if (!this.m_userClient.Contains(name))
+                                    this.m_userClient.Add(name);
+
+                        else if (msg == "종료")
+                            lock (this.m_userClient)
+                                this.m_userClient.Remove(name);
+                    }
+                }
+
+                if (id != ChatIds.FreeCompany ||
+                    this.m_client.ClientUserName == null ||
+                    this.m_client.ClientUserName != chat.User ||
+                    !regBotChat.IsMatch(chat.Text))
                 {
                     this.m_user.Foreach(le =>
                     {
@@ -492,33 +517,63 @@ namespace FFChatBot
                     { }
 
                     else if (msg.Text == "/user")
-                        this.m_telegram.SendMessage(user, GetCurrentUserStr(), false);
+                        this.m_telegram.SendMessage(user, GetCurrentUserStr(true), false);
                     else
                     {
                         user.ExpandExpires();
 
                         this.m_client.SendMessage(new Chat(this.m_chatId, user.FFName, msg.Text));
 
-                        var chat = new Chat(this.m_chatId, "`" + user.FFName + "`", msg.Text);
-                        this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, true), user, true);
+                        var chat = new Chat(this.m_chatId, user.FFName, msg.Text + " (T)");
+                        this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, false), user, true);
                     }
                 }
             }
         }
 
-        private string GetCurrentUserStr()
+        private string GetCurrentUserStr(bool containsClient)
         {
-            var sb = new StringBuilder("현재 텔레그램 접속자\n");
+            var sb = new StringBuilder(4096);
+            int i;
 
-            var lst = this.m_user.GetUsersConnected();
-            if (lst != null)
+            if (containsClient)
             {
-                for (int i = 0; i < lst.Length; ++i)
+                sb.AppendLine("현재 게임 접속자 (추정)");
+
+                lock (this.m_userClient)
+                {
+                    if (this.m_userClient.Count > 0)
+                    {
+                        for (i = 0; i < this.m_userClient.Count; ++i)
+                        {
+                            sb.Append(this.m_userClient[i]);
+                            sb.Append(", ");
+                        }
+
+                        sb.Remove(sb.Length - 2, 2);
+                    }
+                    else
+                        sb.Append('-');
+                }
+
+                sb.AppendLine();
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("현재 텔레그램 접속자");
+            var lst = this.m_user.GetUsersConnected();
+            if (lst != null && lst.Length > 0)
+            {
+                for (i = 0; i < lst.Length; ++i)
                 {
                     sb.Append(lst[i].FFName);
-                    sb.Append(' ');
+                    sb.Append(", ");
                 }
+
+                sb.Remove(sb.Length - 2, 2);
             }
+            else
+                sb.Append('-');
 
             return sb.ToString().Trim();
         }
