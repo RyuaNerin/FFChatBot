@@ -64,7 +64,7 @@ namespace FFChatBot.Module.FFXIV
 		    { ChatIds.LinkShell_7, "/l7 " },
 		    { ChatIds.LinkShell_8, "/l8 " },
 		    { ChatIds.FreeCompany, "/fc " },
-		    { ChatIds.Tell_Send, "/t " },
+		    { ChatIds.Tell_Send,   "/t " },
         };
 
         // 3.15

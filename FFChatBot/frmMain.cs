@@ -10,6 +10,7 @@ using FFChatBot.Module.FFXIV;
 using Telegram.Bot.Args;
 #if !DEBUG
 using System.Diagnostics;
+using System.Threading;
 using RyuaNerin;
 #endif
 
@@ -62,17 +63,21 @@ namespace FFChatBot
             this.cmbChat.SelectedIndex = 0;
 
 #if !DEBUG
-            var newVer = await Task.Factory.StartNew(() => LatestRelease.CheckNewVersion("RyuaNerin", "FFChatBot"));
-            if (newVer != null)
+            if (!await Task.Factory.StartNew<bool>(CheckLatestRelease))
             {
-                MessageBox.Show("새 버전이 출시되었습니다.");
-                Process.Start(new ProcessStartInfo { UseShellExecute = true, FileName = string.Format("\"{0}\"", newVer) }).Dispose();
                 Application.Exit();
                 return;
             }
 #endif
 
             await Task.Factory.StartNew(FFData.Completion.Load);
+            
+#if !DEBUG
+            Task.Factory.StartNew(() => {
+                while (CheckLatestRelease())
+                    Thread.Sleep(TimeSpan.FromHours(1));
+            });
+#endif
 
             this.m_user.Init();
 
@@ -80,6 +85,22 @@ namespace FFChatBot
 
             this.Enabled = true;
         }
+
+#if !DEBUG
+        private bool CheckLatestRelease()
+        {
+            var newVer = LatestRelease.CheckNewVersion("RyuaNerin", "FFChatBot");
+            if (newVer != null)
+            {
+                this.Invoke(new Func<string, DialogResult>(MessageBox.Show), "새 버전이 업데이트 되었습니다.");
+                Process.Start(new ProcessStartInfo { UseShellExecute = true, FileName = string.Format("\"{0}\"", newVer) }).Dispose();
+
+                return false;
+            }
+
+            return true;
+        }
+#endif
 
         private void User_OnUserConnected(User user)
         {
@@ -102,9 +123,9 @@ namespace FFChatBot
 
             if (user.Verified)
             {
-                this.m_client.SendMessage(new Chat(this.m_chatId, null, user.FFName + "님이 종료했습니다."));
+                this.m_client.SendMessage(new Chat(this.m_chatId, null, user.FFName + "님이 접속을 종료했습니다."));
 
-                var chat = new Chat(this.m_chatId, null, user.FFName + "님이 접속했습니다. (T)");
+                var chat = new Chat(this.m_chatId, null, user.FFName + "님이 접속을 종료했습니다. (T)");
                 this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, false), user, true);
             }
 
@@ -426,7 +447,7 @@ namespace FFChatBot
             user.SetVirified();
         }
 
-        private static readonly Regex regFCLogin = new Regex("^(.+) 님이 (접속|종료)했습니다.$", RegexOptions.Singleline);
+        private static readonly Regex regFCLogin = new Regex("^(.+) 님이 접속(을 종료)?했습니다.$", RegexOptions.Singleline);
         private static readonly Regex regBotChat = new Regex("^<[^>]+> .+$|^.+님이 (접속|종료)했습니다.$", RegexOptions.Singleline);
         private void Client_OnNewChat(Chat chat)
         {
@@ -448,15 +469,15 @@ namespace FFChatBot
                     var m = regFCLogin.Match(chat.Text);
                     if (m.Success)
                     {
-                        var msg  = m.Groups[2].Value;
                         var name = m.Groups[1].Value;
 
-                        if (msg == "접속")
+                        if (chat.Text.EndsWith("접속했습니다."))
+                        {
                             lock (this.m_userClient)
                                 if (!this.m_userClient.Contains(name))
                                     this.m_userClient.Add(name);
-
-                        else if (msg == "종료")
+                        }
+                        else if (chat.Text.EndsWith("접속을 종료했습니다."))
                             lock (this.m_userClient)
                                 this.m_userClient.Remove(name);
                     }
