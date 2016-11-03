@@ -13,14 +13,19 @@ namespace FFChatBot
         {
             ErrorTrace.Load();
 
-            using (var writer = new StreamWriter("ffchatbot.log", true, Encoding.UTF8))
+            using (var writer = new LogWriter("ffchatbot.log", true, Encoding.UTF8))
             {
                 writer.AutoFlush = true;
                 Console.SetOut(writer);
 
+
+                writer.WriteLine();
+                writer.WriteLine();
+                writer.WriteLine("Start FFCHATBOT");
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.Run(new frmMain());
+                writer.WriteLine("Exit FFCHATBOT");
             }
         }
     }

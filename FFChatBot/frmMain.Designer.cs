@@ -341,6 +341,7 @@
             // 
             // btnDisableT2F
             // 
+            this.btnDisableT2F.Enabled = false;
             this.btnDisableT2F.Location = new System.Drawing.Point(72, 79);
             this.btnDisableT2F.Name = "btnDisableT2F";
             this.btnDisableT2F.Size = new System.Drawing.Size(58, 30);

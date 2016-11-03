@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Linq;
 using System.Windows.Forms;
 using FFChatBot.Module;
 using FFChatBot.Module.FFXIV;
@@ -18,10 +19,16 @@ namespace FFChatBot
 {
     internal partial class frmMain : Form
     {
+        private struct InGameUser
+        {
+            public string FFName;
+            public DateTime Logined;
+        }
+
         private volatile ChatIds m_chatId = 0;
 
         private readonly Dictionary<User, ListViewItem> m_userItem = new Dictionary<User, ListViewItem>();
-        private readonly List<string> m_userClient = new List<string>();
+        private readonly List<InGameUser> m_userClient = new List<InGameUser>();
 
         private readonly TelegramModule m_telegram;
         private readonly FFXIVModule m_client;
@@ -81,7 +88,7 @@ namespace FFChatBot
 
             this.m_user.Init();
 
-            this.m_client.Initialize();
+            this.m_client.GetClientProcess();
 
             this.Enabled = true;
         }
@@ -448,7 +455,7 @@ namespace FFChatBot
         }
 
         private static readonly Regex regFCLogin = new Regex("^(.+) 님이 접속(을 종료)?했습니다.$", RegexOptions.Singleline);
-        private static readonly Regex regBotChat = new Regex("^<[^>]+> .+$|^.+님이 (접속|종료)했습니다.$", RegexOptions.Singleline);
+        private static readonly Regex regBotChat = new Regex("^<[^>]+> .+$|^.+님이 접속(을 종료)?했습니다.$", RegexOptions.Singleline);
         private void Client_OnNewChat(Chat chat)
         {
             Console.WriteLine("F [{0}] {1}", chat.Id, chat.Full);
@@ -459,8 +466,10 @@ namespace FFChatBot
 
             if (chat.Id == ChatIds.Tell_Recive)
             {
+                /*
                 if (this.m_user.ContainsFFName(chat.User))
                     this.m_client.SendMessage(new Chat(ChatIds.Tell_Send, chat.User, this.GetCurrentUserStr(false)));
+                */
             }
             else if ((chat.Id == id || (id == ChatIds.FreeCompany && (chat.Id == ChatIds.FCLogin || chat.Id == ChatIds.FCNotice))))
             {
@@ -474,12 +483,12 @@ namespace FFChatBot
                         if (chat.Text.EndsWith("접속했습니다."))
                         {
                             lock (this.m_userClient)
-                                if (!this.m_userClient.Contains(name))
-                                    this.m_userClient.Add(name);
+                                if (!this.m_userClient.Any(le => le.FFName == name))
+                                    this.m_userClient.Add(new InGameUser { FFName = name, Logined = chat.DT });
                         }
                         else if (chat.Text.EndsWith("접속을 종료했습니다."))
                             lock (this.m_userClient)
-                                this.m_userClient.Remove(name);
+                                this.m_userClient.RemoveAll(le => le.FFName == name);
                     }
                 }
 
@@ -539,6 +548,10 @@ namespace FFChatBot
 
                     else if (msg.Text == "/user")
                         this.m_telegram.SendMessage(user, GetCurrentUserStr(true), false);
+
+                    else if (msg.Text == "/fuser")
+                        this.m_telegram.SendMessage(user, GetCurrentUserStrInGame(), false);
+
                     else
                     {
                         user.ExpandExpires();
@@ -567,7 +580,7 @@ namespace FFChatBot
                     {
                         for (i = 0; i < this.m_userClient.Count; ++i)
                         {
-                            sb.Append(this.m_userClient[i]);
+                            sb.Append(this.m_userClient[i].FFName);
                             sb.Append(", ");
                         }
 
@@ -579,9 +592,11 @@ namespace FFChatBot
 
                 sb.AppendLine();
                 sb.AppendLine();
+                sb.AppendLine("현재 텔레그램 접속자");
             }
+            else
+                sb.AppendLine("현재 텔레그램 접속자 : ");
 
-            sb.AppendLine("현재 텔레그램 접속자");
             var lst = this.m_user.GetUsersConnected();
             if (lst != null && lst.Length > 0)
             {
@@ -597,6 +612,32 @@ namespace FFChatBot
                 sb.Append('-');
 
             return sb.ToString().Trim();
+        }
+        
+        private string GetCurrentUserStrInGame()
+        {
+            var sb = new StringBuilder(4096);
+
+            sb.AppendLine("현재 게임 접속자 (추정)");
+
+            lock (this.m_userClient)
+            {
+                if (this.m_userClient.Count > 0)
+                {
+                    TimeSpan time;
+                    int rank = 1;
+
+                    foreach (var st in this.m_userClient.OrderBy(le => le.Logined))
+                    {
+                        time = DateTime.UtcNow - st.Logined;
+                        sb.AppendLine(string.Format("{0}) [{1:##00}:{2:00}:{3:00}] {4}", rank++, time.Hours, time.Minutes, time.Seconds, st.FFName));
+                    }
+                }
+                else
+                    sb.Append('-');
+            }
+
+            return sb.ToString();
         }
 
         private void btnExpires_Click(object sender, EventArgs e)

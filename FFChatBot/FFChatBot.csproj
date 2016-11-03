@@ -12,7 +12,7 @@
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
-    <NuGetPackageImportStamp>447af22c</NuGetPackageImportStamp>
+    <NuGetPackageImportStamp>77ce252f</NuGetPackageImportStamp>
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <PublishUrl>게시\</PublishUrl>
     <Install>true</Install>
@@ -101,6 +101,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FFData\Completion.cs" />
+    <Compile Include="LogWriter.cs" />
     <Compile Include="Module\ConnectionList.cs" />
     <Compile Include="Module\TelegramModule.cs" />
     <Compile Include="Module\FFXIV\Chat.cs" />

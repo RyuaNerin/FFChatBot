@@ -66,44 +66,12 @@ namespace FFChatBot.Module.FFXIV
 		    { ChatIds.FreeCompany, "/fc " },
 		    { ChatIds.Tell_Send,   "/t " },
         };
-
-        // 3.15
-        private static readonly MemoryPatternChat ChatPatternX86 = new MemoryPatternChat(
-            "**088b**********505152e8********a1",
-            new long[] { 0, 0x18, 0x2F0 },
-            new long[] { 0, 0x18, 0x2F4 },
-            new long[] { 0, 0x18, 0x2E0 },
-            new long[] { 0, 0x18, 0x2E4 }
-            );
-        private static readonly MemoryPatternChat ChatPatternX64 = new MemoryPatternChat(
-            "e8********85c0740e488b0d********33D2E8********488b0d",
-            new long[] { 0, 0x30, 0x438 },
-            new long[] { 0, 0x30, 0x440 },
-            new long[] { 0, 0x30, 0x418 },
-            new long[] { 0, 0x30, 0x420 }
-            );
-
-        private static readonly MemoryPatternMacro MacroPatternX86 = new MemoryPatternMacro(
-            false,
-           "40**********************************4D4143524F2E44415400",
-            138,
-            1352,
-            84,
-            8
-            );
-        private static readonly MemoryPatternMacro MacroPAtternX64 = new MemoryPatternMacro(
-            true,
-            "40******************************************************************4D4143524F2E44415400",
-            186,
-            1672,
-            104,
-            16
-            );
         
         private readonly Queue<Chat> m_toClient = new Queue<Chat>();
 
         private readonly ManualResetEvent m_readChat = new ManualResetEvent(false);
         private readonly ManualResetEvent m_sendChat = new ManualResetEvent(false);
+        private readonly ManualResetEvent m_sendChatWait = new ManualResetEvent(false);
 
         public event NewChatEvent OnNewChat;
         public event ClientExitedEvent OnClientExited;
@@ -121,6 +89,9 @@ namespace FFChatBot.Module.FFXIV
         private IntPtr m_chatLog;
         private IntPtr m_macro;
 
+        private Task m_readChatTask;
+        private Task m_sendChatTask;
+
         private volatile string m_clientUsername;
         public string ClientUserName { get { return this.m_clientUsername; } }
 
@@ -130,14 +101,6 @@ namespace FFChatBot.Module.FFXIV
         private int m_ttfMacro;
         private Keys m_ttfKey;
 
-        public void Initialize()
-        {
-            this.GetClientProcess();
-
-            Task.Factory.StartNew(ReadChatWorker);
-            Task.Factory.StartNew(SendChatWorker);
-        }
-
         public void Clear()
         {
             this.Clear(true);
@@ -145,11 +108,15 @@ namespace FFChatBot.Module.FFXIV
 
         private void Clear(bool raiseEvent)
         {
-            this.m_readChat.Reset();
-            this.m_sendChat.Reset();
+            this.StopTTF();
 
-            lock (this.m_toClient)
-                this.m_toClient.Clear();
+            this.m_readChat.Reset();
+            try
+            {
+            	this.m_readChatTask.Wait();
+            }
+            catch
+            { }
 
             if (this.m_ffxivSelected)
             {
@@ -187,22 +154,24 @@ namespace FFChatBot.Module.FFXIV
             try
             {
                 this.m_ffxiv = Process.GetProcessById(int.Parse(client.Substring(client.IndexOf(':') + 1)));
+                this.m_ffxiv.EnableRaisingEvents = true;
                 this.m_ffxiv.Exited += (s, e) => this.Clear(true);
-                this.m_isX64 = !NativeMethods.IsX86Process(m_ffxiv.Handle);
-                this.m_ffxivHandle = NativeMethods.OpenProcess(NativeMethods.ProcessAccessFlags.All, false, m_ffxiv.Id); // ALL
+                this.m_ffxivHandle = NativeMethods.OpenProcess(NativeMethods.ProcessAccessFlags.All, false, m_ffxiv.Id);
+                this.m_isX64 = !NativeMethods.IsX86Process(this.m_ffxivHandle);
 
-                //this.m_ffxivMainWnd = this.m_ffxiv.MainWindowHandle;
                 this.m_ffxivMainWnd = NativeMethods.FindWindow("FFXIVGAME", null, m_ffxiv.Id);
-
-                this.m_macroPattern = this.m_isX64 ? MacroPAtternX64 : MacroPatternX86;
-
-                this.m_chatPattern = this.m_isX64 ? ChatPatternX64 : ChatPatternX86;
-                this.m_chatLog = NativeMethods.ScanACT(this.m_ffxiv, m_chatPattern.Pattern, this.m_isX64);
-
-                if (this.m_chatLog != IntPtr.Zero)
+                if (this.m_ffxivMainWnd != IntPtr.Zero)
                 {
-                    result = true;
-                    this.m_readChat.Set();
+                    this.m_macroPattern = this.m_isX64 ? MemoryPatternMacro.X64 : MemoryPatternMacro.X86;
+
+                    this.m_chatPattern = this.m_isX64 ? MemoryPatternChat.X64 : MemoryPatternChat.X86;
+                    this.m_chatLog = NativeMethods.ScanACT(this.m_ffxiv, this.m_ffxivHandle, this.m_chatPattern.Pattern, this.m_isX64);
+                    if (this.m_chatLog != IntPtr.Zero)
+                    {
+                        result = true;
+                        this.m_readChat.Set();
+                        this.m_readChatTask = Task.Factory.StartNew(this.ReadChatWorker);
+                    }
                 }
             }
             catch
@@ -231,16 +200,30 @@ namespace FFChatBot.Module.FFXIV
                 this.OnTTFEnabled.Invoke(this.m_macro != IntPtr.Zero);
 
             this.m_ttfEnabled = this.m_macro != IntPtr.Zero;
+
+            if (this.m_ttfEnabled)
+            {
+                this.m_sendChat.Set();
+                this.m_sendChatTask = Task.Factory.StartNew(this.SendChatWorker);
+            }
         }
 
         public void StopTTF()
         {
             this.m_ttfEnabled = false;
 
+            this.m_sendChat.Reset();
+            this.m_sendChatWait.Reset();
+
             lock (this.m_toClient)
-            {
                 this.m_toClient.Clear();
-                this.m_sendChat.Reset();
+
+            try
+            {
+                this.m_sendChatTask.Wait();
+            }
+            catch
+            {
             }
         }
 
@@ -253,17 +236,17 @@ namespace FFChatBot.Module.FFXIV
             {
                 this.m_toClient.Enqueue(chat);
 
-                this.m_sendChat.Set();
+                this.m_sendChatWait.Set();
             }
         }
 
         private void SendChatWorker()
         {
-            Chat chat;
+            Chat? chat;
 
-            while (true)
+            while (this.m_sendChat.WaitOne(TimeSpan.Zero))
             {
-                this.m_sendChat.WaitOne();
+                this.m_sendChatWait.WaitOne();
 
                 chat = null;
                 lock (this.m_toClient)
@@ -272,15 +255,24 @@ namespace FFChatBot.Module.FFXIV
                         chat = this.m_toClient.Dequeue();
                     else
                     {
-                        this.m_sendChat.Reset();
+                        this.m_sendChatWait.Reset();
                         continue;
                     }
                 }
 
-                if (chat != null)
-                    WriteChat(chat);
-
-                Thread.Sleep(500);
+                if (chat.HasValue)
+                {
+                    try
+                    {
+                        WriteChat(chat.Value);                    	
+                    }
+                    catch
+                    {
+                    }
+                    Thread.Sleep(500);
+                }
+                else
+                    Thread.Sleep(100);
             }
         }
 
@@ -293,6 +285,8 @@ namespace FFChatBot.Module.FFXIV
                 : string.Format(chat.User == null ? "{0}" : "{0}<{1}> ", LogCommand[chat.Id], chat.User);
 
             var str = chat.Text.Trim();
+            var strIndex = 0;
+
             var buff = new byte[256];
             byte[] rawStr;
             
@@ -317,7 +311,7 @@ namespace FFChatBot.Module.FFXIV
 
                 if (writeLine)
                 {
-                    rawStr = GetText(head, ref str, len);
+                    rawStr = GetText(head, str, ref strIndex, len);
                     if (rawStr == null)
                         return;
 
@@ -327,7 +321,7 @@ namespace FFChatBot.Module.FFXIV
 
                 WriteMacroLine(this.m_ffxivHandle, this.m_macroPattern, this.m_macro, line, buff, len);
                 
-                if (writeLine && str.Length == 0)
+                if (writeLine && str.Length <= strIndex)
                 {
                     Fill(buff, 0x20); // ' '
                     writeLine = false;
@@ -372,58 +366,76 @@ namespace FFChatBot.Module.FFXIV
             NativeMethods.WriteProcessMemory(process, ptr, data, new IntPtr(len), out written);
         }
 
-        private static byte[] GetText(string head, ref string str, int len)
-        {
-            return GetText(head, ref str, len, str.Contains(" "));
-        }
-        private static byte[] GetText(string head, ref string str, int len, bool word)
+        private static byte[] GetText(string head, string str, ref int startIndex, int bufferSize)
         {
             var headLen = Encoding.UTF8.GetByteCount(head);
-
-            if (len < headLen + 5)
+            if (bufferSize < headLen + 5)
                 return null;
-
-            if (word)
+            
+            var length = str.IndexOf('\n', startIndex);
+            if (length == -1)
             {
-                var strArr = str.ToCharArray();
-                int index = -1;
+                length = str.Length - startIndex;
+                return GetText(head, str, ref startIndex, length, bufferSize - headLen, str.IndexOf(' ', startIndex, length) >= 0);
+            }
+            else
+            {
+                length = length - startIndex;
+                var buff = GetText(head, str, ref startIndex, length, bufferSize - headLen, str.IndexOf(' ', startIndex, length) >= 0);
+                return buff;
+            }
+        }
 
-                index = str.IndexOf(' ', index + 1);
-                while (headLen + Encoding.UTF8.GetByteCount(strArr, 0, index) < len)
+        private static byte[] GetText(string head, string str, ref int startIndex, int length, int bufferSize, bool splitBySpace)
+        {
+            char[] strArr = str.ToCharArray();
+
+            if (splitBySpace)
+            {
+                var lens = new List<int>(16);
+                int i;
+                
+                i = startIndex;
+                do 
                 {
-                    index = str.IndexOf(' ', index + 1);
-                    if (index == -1)
+                    i = str.IndexOf(' ', i + 1);
+                    if (lens.Count == 0 && bufferSize < i - startIndex)
+                        return GetText(head, str, ref startIndex, length, bufferSize, false);
+
+                    if (i == -1 || i > startIndex + length)
                     {
-                        index = strArr.Length;
+                        lens.Add(length);
+                        break;
+                    }
+                    else
+                        lens.Add(i - startIndex);
+                } while (true);
+
+
+                int newLength = 0;
+                for (i = lens.Count - 1; i >= 0; --i)
+                {
+                    if (Encoding.UTF8.GetByteCount(strArr, startIndex, lens[i]) <= bufferSize)
+                    {
+                        newLength = lens[i];
                         break;
                     }
                 }
 
-                if (index == -1)
-                    return GetText(head, ref str, len, false);
+                var buff = Encoding.UTF8.GetBytes(head + str.Substring(startIndex, newLength).Trim());
 
-                var buff = Encoding.UTF8.GetBytes(head + str.Substring(0, index));
-
-                if (index + 2 < str.Length)
-                    str = str.Substring(index + 1).Trim();
-                else
-                    str = "";
-
+                startIndex += newLength + 1;
                 return buff;
             }
             else
             {
-                var strArr = str.ToCharArray();
-                var strLen = strArr.Length;
-                while (headLen + Encoding.UTF8.GetByteCount(strArr, 0, strLen) >= len)
+                var strLen = length;
+                while (Encoding.UTF8.GetByteCount(strArr, startIndex, strLen) >= bufferSize)
                     --strLen;
 
-                var buff = Encoding.UTF8.GetBytes(head + str.Substring(0, strLen));
+                var buff = Encoding.UTF8.GetBytes(head + str.Substring(startIndex, strLen));
 
-                if (str.Length > strLen)
-                    str = str.Substring(strLen).Trim();
-                else
-                    str = "";
+                startIndex += strLen;
 
                 return buff;
             }
@@ -438,62 +450,60 @@ namespace FFChatBot.Module.FFXIV
 
         private void ReadChatWorker()
         {
-            IntPtr start;
-            IntPtr end;
-            IntPtr lenStart;
-            IntPtr lenEnd;
+            long start;
+            long end;
+            long lenStart;
+            long lenEnd;
             
             int[] buff = new int[0xfa0];
             int num = 0;
             bool flag = true;
-            IntPtr zero = IntPtr.Zero;
-            IntPtr ptr2 = IntPtr.Zero;
+            long zero = 0;
+            long ptr2 = 0;
 
             int j;
             int i;
             int len;
 
-            while (true)
+            while (this.m_readChat.WaitOne(TimeSpan.Zero))
             {
-                this.m_readChat.WaitOne();
-
-                start      = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.Start);
-                end        = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.End);
-                lenStart   = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.LenStart);
-                lenEnd     = NativeMethods.GetPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.LenEnd);
+                start      = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.Start).ToInt64();
+                end        = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.End).ToInt64();
+                lenStart   = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.LenStart).ToInt64();
+                lenEnd     = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.LenEnd).ToInt64();
                 
-                if ((start == IntPtr.Zero || end == IntPtr.Zero) || (lenStart == IntPtr.Zero || lenEnd == IntPtr.Zero))
+                if ((start == 0 || end == 0) || (lenStart == 0 || lenEnd == 0))
                     Thread.Sleep(100);
 
-                else if ((lenStart.ToInt64() + num * 4) == lenEnd.ToInt64())
+                else if (lenStart + num * 4 == lenEnd)
                 {
                     flag = false;
                     Thread.Sleep(10);
                 }
                 else
                 {
-                    if (lenEnd.ToInt64() < lenStart.ToInt64())
-                        throw new ApplicationException("error with chat log - end len pointer is before beginning len pointer.");
+                    if (lenEnd < lenStart)
+                        continue;
+                        //throw new ApplicationException("error with chat log - end len pointer is before beginning len pointer.");
 
-                    if (lenEnd.ToInt64() < (lenStart.ToInt64() + (num * 4)))
+                    if (lenEnd < (lenStart + num * 4))
                     {
-                        if ((zero != IntPtr.Zero) && (zero != IntPtr.Zero))
+                        if ((zero != 0) && (zero != 0))
                         {
                             for (j = num; j < 0x3e8; j++)
                             {
-                                buff[j] = NativeMethods.ReadInt32(this.m_ffxivHandle, ptr2 + (j * 4));
+                                buff[j] = NativeMethods.ReadInt32(this.m_ffxivHandle, new IntPtr(ptr2 + j * 4));
                                 if (buff[j] > 0x100000)
                                 {
-                                    zero = IntPtr.Zero;
-                                    ptr2 = IntPtr.Zero;
-                                    throw new ApplicationException("Error with chat log - message length too long.");
+                                    zero = 0;
+                                    ptr2 = 0;
+                                    continue;
+                                    //throw new ApplicationException("Error with chat log - message length too long.");
                                 }
                                 int length = buff[j] - ((j == 0) ? 0 : buff[j - 1]);
                                 if (length != 0)
                                 {
-                                    byte[] message = NativeMethods.ReadBytes(this.m_ffxivHandle, IntPtr.Add(start, j == 0 ? 0 : buff[j - 1]), length);
-                                    if (CheckMessage(message))
-                                        RaiseEventNewChat(message);
+                                    ReadChat(this.m_ffxivHandle, new IntPtr(start + (j == 0 ? 0 : buff[j - 1])), length);
                                 }
                             }
                         }
@@ -502,23 +512,25 @@ namespace FFChatBot.Module.FFXIV
                     }
                     zero = start;
                     ptr2 = lenStart;
-                    if ((lenEnd.ToInt64() - lenStart.ToInt64()) > 0x100000L)
-                        throw new ApplicationException("Error with chat log - too much unread Len data (>100kb).");
+                    if ((lenEnd - lenStart) > 0x100000L)
+                        continue;
+                        //throw new ApplicationException("Error with chat log - too much unread Len data (>100kb).");
 
-                    if (((lenEnd.ToInt64() - lenStart.ToInt64()) % 4L) != 0L)
-                        throw new ApplicationException("Error with chat log - Log length array is invalid.");
+                    if (((lenEnd - lenStart) % 4) != 0)
+                        continue;
+                        //throw new ApplicationException("Error with chat log - Log length array is invalid.");
 
-                    if ((lenEnd.ToInt64() - lenStart.ToInt64()) > 0xfa0L)
-                        throw new ApplicationException("Error with chat log - Log length array is too small.");
+                    if ((lenEnd - lenStart) > 0xfa0L)
+                        continue;
+                        //throw new ApplicationException("Error with chat log - Log length array is too small.");
 
-                    len = (int)(lenEnd.ToInt64() - lenStart.ToInt64()) / 4;
+                    len = (int)(lenEnd - lenStart) / 4;
                     for (i = num; i < len; i++)
                     {
-                        buff[i] = NativeMethods.ReadInt32(this.m_ffxivHandle, lenStart + (i * 4));
-                        byte[] message = NativeMethods.ReadBytes(this.m_ffxivHandle, start + (i == 0 ? 0 : buff[i - 1]), buff[i] - (i == 0 ? 0 : buff[i - 1]));
+                        buff[i] = NativeMethods.ReadInt32(this.m_ffxivHandle, new IntPtr(lenStart + i * 4));
                         num++;
-                        if (!flag && CheckMessage(message))
-                            RaiseEventNewChat(message);
+                        if (!flag)
+                            ReadChat(this.m_ffxivHandle, new IntPtr(start + (i == 0 ? 0 : buff[i - 1])), buff[i] - (i == 0 ? 0 : buff[i - 1]));
                     }
                     flag = false;
 
@@ -527,11 +539,17 @@ namespace FFChatBot.Module.FFXIV
             }
         }
         
-        private static bool CheckMessage(byte[] rawData)
+        private void ReadChat(IntPtr handle, IntPtr offset, int length)
         {
-            return Enum.IsDefined(typeof(ChatIds), BitConverter.ToInt32(rawData, 4));
+            if (length < 8)
+                return;
+
+            int key = NativeMethods.ReadInt32(handle, offset + 4);
+            if (Enum.IsDefined(typeof(ChatIds), key))
+                RaiseEventNewChat(NativeMethods.ReadBytes(handle, offset, length));
         }
 
+        private static readonly DateTime BaseTimeStamp = new DateTime(1970, 1, 1, 0, 0, 0);
         private void RaiseEventNewChat(byte[] rawData)
         {
             if (this.OnNewChat == null)
@@ -542,25 +560,28 @@ namespace FFChatBot.Module.FFXIV
             if (!LogIDs.ContainsKey(type))
                 return;
 
+            // TimeStamp
+            var dateTime = BaseTimeStamp.AddSeconds(BitConverter.ToInt32(rawData, 0));
+
             // Nickname
             int pos;
             bool hasTag;
             bool hasTag2;
-            var nick = GetNick(rawData, 9, 0x3A, out pos, out hasTag); // ':' = 3A
+            var nick = GetNick(rawData, 9, out pos, out hasTag);
             var text = GetStr(rawData, pos, rawData.Length, out hasTag2);
 
             if (!hasTag && this.m_clientUsername != nick)
                 this.m_clientUsername = nick;
 
-            this.OnNewChat(new Chat(type, nick, text));
+            this.OnNewChat(new Chat(type, dateTime, nick, text));
         }
 
-        private static string GetNick(byte[] rawData, int index, int endByte, out int pos, out bool hasTag)
+        private static string GetNick(byte[] rawData, int index, out int pos, out bool hasTag)
         {
             hasTag = false;
 
             int len = 0;
-            while (rawData[index + len] != endByte)
+            while (rawData[index + len] != 0x3A) // ':' = 3A
                 len++;
 
             pos = index + len + 1;
@@ -630,7 +651,7 @@ namespace FFChatBot.Module.FFXIV
             if (v < 0xF0)
                 return v - 1;
             else if (v == 0xF0)
-                return v;
+                return raw[index + 1];
             else if (v == 0xF2)
                 return (raw[index + 1] << 8) | (raw[index + 2]);
             else if (v == 0xF6)
@@ -802,7 +823,7 @@ namespace FFChatBot.Module.FFXIV
                 return true;
             }
 
-            public static IntPtr ScanACT(Process process, string pattern, bool isX64)
+            public static IntPtr ScanACT(Process process, IntPtr hProcess, string pattern, bool isX64)
             {
                 var patArray = GetPatternArray(pattern);
 
@@ -818,33 +839,24 @@ namespace FFChatBot.Module.FFXIV
 
                 while (curPtr.ToInt64() < maxPtr.ToInt64())
                 {
-                    try
-                    {
-                        if ((curPtr + len).ToInt64() > maxPtr.ToInt64())
-                            nSize = new IntPtr(maxPtr.ToInt64() - curPtr.ToInt64());
+                    if ((curPtr + len).ToInt64() > maxPtr.ToInt64())
+                        nSize = new IntPtr(maxPtr.ToInt64() - curPtr.ToInt64());
 
-                        if (NativeMethods.ReadProcessMemory(process.Handle, curPtr, buff, nSize, out read))
+                    if (NativeMethods.ReadProcessMemory(hProcess, curPtr, buff, nSize, out read))
+                    {
+                        index = FindArray(buff, patArray, 0, read.ToInt32() - 3);
+
+                        if (index != -1)
                         {
-                            index = FindArray(buff, patArray, 0, read.ToInt32() - 3);
+                            IntPtr ptr = new IntPtr(BitConverter.ToInt32(buff, index + patArray.Length));
 
-                            if (index != -1)
-                            {
-                                IntPtr ptr = new IntPtr(BitConverter.ToInt32(buff, index + patArray.Length));
+                            if (isX64)
+                                ptr = new IntPtr(curPtr.ToInt64() + index + patArray.Length + 4 + ptr.ToInt64());
 
-                                if (isX64)
-                                    ptr = new IntPtr(curPtr.ToInt64() + index + patArray.Length + 4 + ptr.ToInt64());
-
-                                return ptr;
-                            }
+                            return ptr;
                         }
-                        curPtr += len;
                     }
-                    catch (Exception exception)
-                    {
-                        Console.WriteLine("ERROR: Cannot scan pointers.");
-                        Console.WriteLine(exception.Message);
-                        Console.WriteLine(exception.StackTrace.ToString());
-                    }
+                    curPtr += len;
                 }
 
                 return IntPtr.Zero;
@@ -922,40 +934,37 @@ namespace FFChatBot.Module.FFXIV
                             break;
 
                     if (j == pattern.Length)
-                    {
                         return i;
-                    }
                 }
 
                 return -1;
             }
 
-            public static IntPtr GetPointer(IntPtr handle, bool isX64, IntPtr sigPointer, long[] pointerTree)
+            public static IntPtr ReadPointer(IntPtr handle, bool isX64, IntPtr sigPointer, int[] pointerTree)
             {
                 if (pointerTree == null)
                     return IntPtr.Zero;
 
                 if (pointerTree.Length == 0)
-                    return new IntPtr(sigPointer.ToInt64());
+                    return sigPointer;
 
-                IntPtr ptr = new IntPtr(sigPointer.ToInt64());
                 for (int i = 0; i < pointerTree.Length; i++)
                 {
-                    ptr = ReadPointer(handle, isX64, new IntPtr(ptr.ToInt64() + pointerTree[i]));
+                    sigPointer = ReadPointer(handle, isX64, sigPointer + pointerTree[i]);
 
-                    if (ptr == IntPtr.Zero)
+                    if (sigPointer == IntPtr.Zero)
                         return IntPtr.Zero;
                 }
-                return ptr;
+                return sigPointer;
             }
 
             public static IntPtr ReadPointer(IntPtr handle, bool isX64, IntPtr offset)
             {
-                int num = isX64 ? 8 : 4;
+                int size_t = isX64 ? 8 : 4;
 
-                byte[] lpBuffer = new byte[num];
+                byte[] lpBuffer = new byte[size_t];
                 IntPtr read;
-                if (!NativeMethods.ReadProcessMemory(handle, offset, lpBuffer, new IntPtr(num), out read))
+                if (!NativeMethods.ReadProcessMemory(handle, offset, lpBuffer, new IntPtr(size_t), out read) || read.ToInt64() != size_t)
                     return IntPtr.Zero;
 
                 if (isX64)
@@ -968,7 +977,7 @@ namespace FFChatBot.Module.FFXIV
             {
                 byte[] lpBuffer = new byte[4];
                 IntPtr read;
-                if (!NativeMethods.ReadProcessMemory(handle, offset, lpBuffer, new IntPtr(4), out read))
+                if (!NativeMethods.ReadProcessMemory(handle, offset, lpBuffer, new IntPtr(4), out read) || read.ToInt64() != 4)
                     return 0;
 
                 return BitConverter.ToInt32(lpBuffer, 0);
@@ -976,15 +985,13 @@ namespace FFChatBot.Module.FFXIV
 
             public static byte[] ReadBytes(IntPtr handle, IntPtr offset, int length)
             {
-                if ((length <= 0) || (length > 0x186a0))
-                    return null;
-
-                if (offset == IntPtr.Zero)
+                if (length <= 0 || offset == IntPtr.Zero)
                     return null;
 
                 byte[] lpBuffer = new byte[length];
 
                 IntPtr read = IntPtr.Zero;
+                
                 NativeMethods.ReadProcessMemory(handle, offset, lpBuffer, new IntPtr(length), out read);
 
                 return lpBuffer;
