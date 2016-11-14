@@ -119,7 +119,7 @@ namespace FFChatBot.Module
         private volatile int m_connectionExpires = 5;
         public int ConnectionExpires
         {
-            get { return this.m_connectionExpires; }
+            get { return this.m_connectionExpires == 0 ? int.MaxValue : this.m_connectionExpires; }
             set { this.m_connectionExpires = value; }
         }
 

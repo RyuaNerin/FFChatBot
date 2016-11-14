@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Resources;
 
 // 어셈블리의 일반 정보는 다음 특성 집합을 통해 제어됩니다.
 // 어셈블리와 관련된 정보를 수정하려면
@@ -32,5 +33,6 @@ using System.Runtime.InteropServices;
 // 모든 값을 지정하거나 아래와 같이 '*'를 사용하여 빌드 번호 및 수정 버전이 자동으로
 // 지정되도록 할 수 있습니다.
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("2016.11.04.1")]
-[assembly: AssemblyFileVersion("2016.11.04.1")]
+[assembly: AssemblyVersion("2016.11.14.1")]
+[assembly: AssemblyFileVersion("2016.11.14.1")]
+[assembly: NeutralResourcesLanguageAttribute("ko-KR")]

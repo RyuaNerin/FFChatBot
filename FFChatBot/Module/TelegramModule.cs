@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FFChatBot.Module
 {
@@ -12,8 +11,9 @@ namespace FFChatBot.Module
     internal class TelegramModule
     {
         private TelegramBotClient m_telegram;
-        private DateTime m_startTime;
         private volatile bool m_telegramConnected = false;
+        
+        private bool m_reported = false;
 
         public string BotName { get; private set; }
 
@@ -32,17 +32,27 @@ namespace FFChatBot.Module
             string message = null;
             try
             {
-                this.m_startTime = DateTime.UtcNow;
-
                 this.m_telegram = new TelegramBotClient(key);
                 this.m_telegram.OnMessage += Telegram_OnMessage;
                 this.m_telegram.OnMessageEdited += Telegram_OnMessage;
 
-                this.m_telegram.StartReceiving();
+                this.m_telegram.OnReceiveError += m_telegram_OnReceiveError;
+                this.m_telegram.OnReceiveGeneralError += m_telegram_OnReceiveGeneralError;
 
-                this.BotName = this.m_telegram.GetMeAsync().Result.Username;
+                if (this.m_telegram.TestApiAsync().Result)
+                {
+                    this.BotName = this.m_telegram.GetMeAsync().Result.Username;
 
-                this.m_telegramConnected = true;
+                    if (!this.m_reported)
+                    {
+                        Sentry.Info(null, "Started telegram ({0})", this.BotName);
+                        this.m_reported = true;
+                    }
+
+                    this.m_telegram.StartReceiving();
+
+                    this.m_telegramConnected = true;
+                }
             }
             catch (Exception ex)
             {
@@ -77,6 +87,14 @@ namespace FFChatBot.Module
                 return;
 
             this.m_telegram.LeaveChatAsync(user.TeleChatId).ContinueWith(ErrorHandler);
+        }
+
+        private void m_telegram_OnReceiveError(object sender, ReceiveErrorEventArgs e)
+        {
+        }
+
+        private void m_telegram_OnReceiveGeneralError(object sender, ReceiveGeneralErrorEventArgs e)
+        {
         }
 
         private void Telegram_OnMessage(object sender, MessageEventArgs e)

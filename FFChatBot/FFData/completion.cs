@@ -6,7 +6,7 @@ using System.Text;
 
 namespace FFChatBot.FFData
 {
-    static partial class Completion
+    internal static class Completion
     {
         public static readonly IDictionary<int, IDictionary<int, byte[]>> Table = new SortedList<int, IDictionary<int, byte[]>>();
 
@@ -41,7 +41,7 @@ namespace FFChatBot.FFData
                         }
 
                         lst = defaultList = new SortedList<int, byte[]>();
-                        val = "completion_exh_ko";                            
+                        val = "completion_exh_ko";
                     }
                     else
                     {
@@ -56,7 +56,6 @@ namespace FFChatBot.FFData
                     catch
                     {
                     }
-
 
                     Table.Add(key, lst);
                 }

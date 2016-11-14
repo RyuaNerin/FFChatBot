@@ -60,9 +60,10 @@ namespace FFChatBot
             this.txtTTFKey.Text = "F8";
             this.txtTTFKey.Tag = Keys.F8;
 
-            this.Enabled = false;
-
+            this.ntf.Text = this.Text;
             this.ntf.Icon = this.Icon;
+
+            this.Enabled = false;
         }
 
         private async void frmMain_Load(object sender, EventArgs e)
@@ -78,12 +79,14 @@ namespace FFChatBot
 #endif
 
             await Task.Factory.StartNew(FFData.Completion.Load);
-            
+
 #if !DEBUG
+#pragma warning disable 4014
             Task.Factory.StartNew(() => {
                 while (CheckLatestRelease())
                     Thread.Sleep(TimeSpan.FromHours(1));
             });
+#pragma warning restore 4014
 #endif
 
             this.m_user.Init();
@@ -111,7 +114,7 @@ namespace FFChatBot
 
         private void User_OnUserConnected(User user)
         {
-            Console.WriteLine("Connected : {0} ({1})", user.TeleUsername, user.TeleUserId);
+            Console.WriteLine("Connected : {0} ({1}, {2})", user.TeleUsername, user.TeleUserId, user.FFName);
 
             if (user.Verified)
             {
@@ -120,13 +123,13 @@ namespace FFChatBot
                 var chat = new Chat(this.m_chatId, null, user.FFName + "님이 접속했습니다. (T)");
                 this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, false), user, true);
 
-                this.m_telegram.SendMessage(user, "connected.", false);
+                this.m_telegram.SendMessage(user, "*connected*", true);
             }
         }
 
         private void User_OnUserDisconnected(User user)
         {
-            Console.WriteLine("Disconnected : {0} ({1})", user.TeleUsername, user.TeleUserId);
+            Console.WriteLine("Disconnected : {0} ({1}, {2})", user.TeleUsername, user.TeleUserId, user.FFName);
 
             if (user.Verified)
             {
@@ -136,7 +139,7 @@ namespace FFChatBot
                 this.m_user.Foreach(le => this.m_telegram.SendMessage(le, chat.Full, false), user, true);
             }
 
-            this.m_telegram.SendMessage(user, "disconnected.", false);
+            this.m_telegram.SendMessage(user, "*disconnected*", true);
             this.m_telegram.LeaveChat(user);
         }
 
@@ -263,7 +266,7 @@ namespace FFChatBot
             }
             else
             {
-                MessageBox.Show("클라이언트 연결 실패!");
+                MessageBox.Show(this, "클라이언트 연결 실패!", this.Text, MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1);
 
                 this.cmbClient.Enabled = true;
                 this.btnClientSelect.Enabled = true;
@@ -325,21 +328,21 @@ namespace FFChatBot
             this.lblChat.Text = "현재 설정 :" + FFXIVModule.LogIDs[this.m_chatId];
         }
 
-        private void Client_OnTTFEnabled(bool success)
+        private void Client_OnTTFEnabled(string result)
         {
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action<bool>(this.Client_OnTTFEnabled), success);
+                this.Invoke(new Action<string>(this.Client_OnTTFEnabled), result);
                 return;
             }
 
-            if (success)
+            if (result == null)
             {
                 this.btnDisableT2F.Enabled = true;
             }
             else
             {
-                MessageBox.Show("TTF 를 활성화하지 못하였습니다");
+                MessageBox.Show(this, result, this.Text, MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1);
 
                 this.btnEnableT2F.Enabled = true;
                 this.btnDisableT2F.Enabled = false;
@@ -392,7 +395,7 @@ namespace FFChatBot
             }
             else
             {
-                MessageBox.Show(errorMessage);
+                MessageBox.Show(this, errorMessage, this.Text, MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1);
 
                 this.txtTelegramKey.Enabled = true;
                 this.btnTelegramStart.Enabled = true;
@@ -448,8 +451,8 @@ namespace FFChatBot
 
             var user = (User)this.lstUser.SelectedItems[0].Tag;
 
-            user.FFName = this.textBox1.Text;
-            this.textBox1.Text = null;
+            user.FFName = this.txtFFName.Text;
+            this.txtFFName.Text = null;
 
             user.SetVirified();
         }
@@ -458,7 +461,7 @@ namespace FFChatBot
         private static readonly Regex regBotChat = new Regex("^<[^>]+> .+$|^.+님이 접속(을 종료)?했습니다.$", RegexOptions.Singleline);
         private void Client_OnNewChat(Chat chat)
         {
-            Console.WriteLine("F [{0}] {1}", chat.Id, chat.Full);
+            Console.WriteLine("F {0} : {1}", chat.User, chat.Text);
 
             var id = this.m_chatId;
             if (id == 0)
@@ -480,21 +483,20 @@ namespace FFChatBot
                     {
                         var name = m.Groups[1].Value;
 
-                        if (chat.Text.EndsWith("접속했습니다."))
+                        if (chat.Text.EndsWith("접속했습니다.", StringComparison.CurrentCultureIgnoreCase))
                         {
                             lock (this.m_userClient)
                                 if (!this.m_userClient.Any(le => le.FFName == name))
                                     this.m_userClient.Add(new InGameUser { FFName = name, Logined = chat.DT });
                         }
-                        else if (chat.Text.EndsWith("접속을 종료했습니다."))
+                        else if (chat.Text.EndsWith("접속을 종료했습니다.", StringComparison.CurrentCultureIgnoreCase))
                             lock (this.m_userClient)
                                 this.m_userClient.RemoveAll(le => le.FFName == name);
                     }
                 }
 
-                if (id != ChatIds.FreeCompany ||
-                    this.m_client.ClientUserName == null ||
-                    this.m_client.ClientUserName != chat.User ||
+                if (id != ChatIds.FreeCompany || // FC 가 아닌 경우에는 접속/종료 알림이 없다.
+                    (this.m_client.ClientUserName == null || this.m_client.ClientUserName != chat.User) ||
                     !regBotChat.IsMatch(chat.Text))
                 {
                     this.m_user.Foreach(le =>
@@ -522,9 +524,9 @@ namespace FFChatBot
         private void Telegram_OnMessage(object sender, MessageEventArgs e)
         {
             var msg = e.Message;
-            Console.WriteLine("T {1} ({0}) : {2}", msg.From.Username, msg.From.Id, msg.Text);
-
             User user = this.m_user.GetUser(msg.From.Id, msg.Chat.Id, msg.From.Username);
+
+            Console.WriteLine("T {0} : {1}", user.FFName, msg.Text);
 
             user.ExpandExpires();
             

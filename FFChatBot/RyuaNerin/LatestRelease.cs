@@ -16,7 +16,6 @@ namespace RyuaNerin
 
                 var req = HttpWebRequest.Create(string.Format("https://api.github.com/repos/{0}/{1}/releases/latest", owner, repository)) as HttpWebRequest;
                 req.Timeout = 5000;
-                req.UserAgent = "Kisbo";
                 using (var res = req.GetResponse())
                 using (var stream = res.GetResponseStream())
                 {

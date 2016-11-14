@@ -13,8 +13,7 @@ namespace FFChatBot.Module.FFXIV
             this.Full = string.IsNullOrWhiteSpace(user) ? text : string.Format("<{0}> {1}", user, text);
         }
         public Chat(ChatIds id, string user, string text) : this(id, DateTime.MinValue, user, text)
-        {
-        }
+        { }
 
         public ChatIds  Id;
         public DateTime DT;

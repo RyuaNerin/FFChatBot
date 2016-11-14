@@ -2,39 +2,37 @@
 {
     internal class MemoryPatternMacro
     {
-        public static readonly MemoryPatternMacro X86 = new MemoryPatternMacro(
-            false,
-           "40**********************************4D4143524F2E44415400",
-            138,
-            1352,
-            84,
-            8
-            );
-
-        public static readonly MemoryPatternMacro X64 = new MemoryPatternMacro(
-            true,
-            "40******************************************************************4D4143524F2E44415400",
-            186,
-            1672,
-            104,
-            16
-            );
-
-        private MemoryPatternMacro(bool isX64, string pattern, int macroOffset, int macroSize, int lineSize, int lenOff)
+        public static readonly MemoryPatternMacro X86 = new MemoryPatternMacro
         {
-            this.IsX64          = isX64;
-            this.Pattern        = pattern;
-            this.MacroOffset    = macroOffset;
-            this.MacroSize      = macroSize;
-            this.LineSize       = lineSize;
-            this.LenOffset      = lenOff;
-        }
+            IsX64       = false,
+            Pattern     = "40**********************************4D4143524F2E44415400",
+            StartOffset = 0x36,
+            MacroSize   = 0x548,
+
+            LineSize    = 0x54,
+            LineAddress = 0,
+            LineLength  = 8,
+        };
+
+        public static readonly MemoryPatternMacro X64 = new MemoryPatternMacro
+        {
+            IsX64       = true,
+            Pattern     = "40******************************************************************4D4143524F2E44415400",
+            StartOffset = 0x52,
+            MacroSize   = 0x688,
+
+            LineSize    = 0x68,
+            LineAddress = 0,
+            LineLength  = 16,
+        };
         
         public bool     IsX64       { get; private set; }
         public string   Pattern     { get; private set; }
-        public int      MacroOffset { get; private set; }
+        public int      StartOffset { get; private set; }
         public int      MacroSize   { get; private set; }
-        public int      LineSize    { get; private set; }
-        public int      LenOffset   { get; private set; }
+
+        public int      LineSize    { get; private set; }        
+        public int      LineAddress { get; private set; }
+        public int      LineLength  { get; private set; }
     }
 }
