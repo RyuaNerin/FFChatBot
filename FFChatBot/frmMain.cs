@@ -632,7 +632,7 @@ namespace FFChatBot
                     foreach (var st in this.m_userClient.OrderBy(le => le.Logined))
                     {
                         time = DateTime.UtcNow - st.Logined;
-                        sb.AppendLine(string.Format("{0}) [{1:##00}:{2:00}:{3:00}] {4}", rank++, time.Hours, time.Minutes, time.Seconds, st.FFName));
+                        sb.AppendLine(string.Format("{0}. [{1:##00}:{2:00}:{3:00}] {4}", rank++, time.TotalHours, time.Minutes, time.Seconds, st.FFName));
                     }
                 }
                 else

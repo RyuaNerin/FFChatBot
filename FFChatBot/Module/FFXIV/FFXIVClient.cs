@@ -81,8 +81,7 @@ namespace FFChatBot.Module.FFXIV
 
         private volatile bool m_ffxivSelected;
         private Process m_ffxiv;
-        private MemoryPatternChat m_chatPattern;
-        private MemoryPatternMacro m_macroPattern;
+        private MemoryPattern m_pattern;
         private IntPtr m_ffxivMainWnd;
         private IntPtr m_ffxivHandle;
         private bool   m_isX64;
@@ -162,10 +161,15 @@ namespace FFChatBot.Module.FFXIV
                 this.m_ffxivMainWnd = NativeMethods.FindWindow("FFXIVGAME", null, m_ffxiv.Id);
                 if (this.m_ffxivMainWnd != IntPtr.Zero)
                 {
-                    this.m_macroPattern = this.m_isX64 ? MemoryPatternMacro.X64 : MemoryPatternMacro.X86;
-
-                    this.m_chatPattern = this.m_isX64 ? MemoryPatternChat.X64 : MemoryPatternChat.X86;
-                    this.m_chatLog = NativeMethods.ScanFromBytes(this.m_ffxiv.MainModule.BaseAddress, this.m_ffxiv.MainModule.ModuleMemorySize, this.m_ffxivHandle, this.m_chatPattern.Pattern, this.m_isX64);
+                    this.m_pattern = this.m_isX64 ? MemoryPattern.X64 : MemoryPattern.X86;
+                    try
+                    {
+                        this.m_chatLog = NativeMethods.ScanFromBytes(this.m_ffxiv.MainModule.BaseAddress, this.m_ffxiv.MainModule.ModuleMemorySize, this.m_ffxivHandle, this.m_pattern.ChatPattern, this.m_isX64);                    	
+                    }
+                    catch
+                    {
+                        this.m_chatLog = IntPtr.Zero;
+                    }
                     if (this.m_chatLog != IntPtr.Zero)
                     {
                         result = true;
@@ -192,7 +196,14 @@ namespace FFChatBot.Module.FFXIV
 
         private void SetTTFWorker()
         {
-            this.m_macro = NativeMethods.ScanFromMBI(this.m_ffxivHandle, m_macroPattern.Pattern);
+            try
+            {
+                this.m_macro = NativeMethods.ScanFromMBI(this.m_ffxivHandle, m_pattern.MacroPattern);	
+            }
+            catch
+            {
+                this.m_macro = IntPtr.Zero;
+            }
             
             string result = "알 수 없는 오류로 활성화 하지 못하였습니다";
 
@@ -201,12 +212,12 @@ namespace FFChatBot.Module.FFXIV
             {
                 result = null;
 
-                this.m_macro = this.m_macro + this.m_macroPattern.StartOffset + this.m_macroPattern.MacroSize * this.m_ttfMacroNumber;
+                this.m_macro = this.m_macro + this.m_pattern.MacroStart + this.m_pattern.MacroSize * this.m_ttfMacroNumber;
 
                 bool succ = true;
                 for (int i = 1; i < 16; ++i)
                 {
-                    if (GetMacroLineLength(this.m_ffxivHandle, this.m_macroPattern, this.m_macro, i) < 175)
+                    if (GetMacroLineLength(this.m_ffxivHandle, this.m_pattern, this.m_macro, i) < 175)
                     {
                         result = this.m_ttfMacroNumber + "번 매크로의 모든 라인을 스페이스바( ) 로 가득 채워주세요!";
                         succ = false;
@@ -302,12 +313,12 @@ namespace FFChatBot.Module.FFXIV
         {
             var MacroName = Encoding.UTF8.GetBytes("FFCHATBOT_" + DateTime.Now.ToString("hh_mm_ss") + "\0");
 
-            WriteMacroLine(this.m_ffxivHandle, this.m_macroPattern, this.m_macro, 0, MacroName, MacroName.Length);
+            WriteMacroLine(this.m_ffxivHandle, this.m_pattern, this.m_macro, 0, MacroName, MacroName.Length);
 
             IntPtr written;
             NativeMethods.WriteProcessMemory(
                 this.m_ffxivHandle,
-                this.m_macro + this.m_macroPattern.LineLength,
+                this.m_macro + this.m_pattern.MacroLineLength,
                 new byte[] { (byte)MacroName.Length },
                 new IntPtr(1),
                 out written);
@@ -332,17 +343,17 @@ namespace FFChatBot.Module.FFXIV
             bool writeLine = true;
 
             {
-                len = GetMacroLineLength(this.m_ffxivHandle, this.m_macroPattern, this.m_macro, 1);
+                len = GetMacroLineLength(this.m_ffxivHandle, this.m_pattern, this.m_macro, 1);
                 if (len < DisableMacroError.Length)
                     return;
 
                 CopyAndFill(buff, DisableMacroError, 0x20);
 
-                WriteMacroLine(this.m_ffxivHandle, this.m_macroPattern, this.m_macro, 1, buff, len);
+                WriteMacroLine(this.m_ffxivHandle, this.m_pattern, this.m_macro, 1, buff, len);
             }
             for (int line = 2; line < 16; ++line)
             {
-                len = GetMacroLineLength(this.m_ffxivHandle, this.m_macroPattern, this.m_macro, line);
+                len = GetMacroLineLength(this.m_ffxivHandle, this.m_pattern, this.m_macro, line);
                 if (len == 0)
                     continue;
 
@@ -356,7 +367,7 @@ namespace FFChatBot.Module.FFXIV
                     CopyAndFill(buff, rawStr, 0x20);
                 }
 
-                WriteMacroLine(this.m_ffxivHandle, this.m_macroPattern, this.m_macro, line, buff, len);
+                WriteMacroLine(this.m_ffxivHandle, this.m_pattern, this.m_macro, line, buff, len);
                 
                 if (writeLine && str.Length <= strIndex)
                 {
@@ -388,14 +399,14 @@ namespace FFChatBot.Module.FFXIV
                 desc[i] = defaultValue;
         }
 
-        private static int GetMacroLineLength(IntPtr process, MemoryPatternMacro pattern, IntPtr basePtr, int line)
+        private static int GetMacroLineLength(IntPtr process, MemoryPattern pattern, IntPtr basePtr, int line)
         {
-            return NativeMethods.ReadBytes(process, basePtr + pattern.LineSize * line + pattern.LineLength, 1)[0] - 1;
+            return NativeMethods.ReadBytes(process, basePtr + pattern.MacroLineSize * line + pattern.MacroLineLength, 1)[0] - 1;
         }
 
-        private static void WriteMacroLine(IntPtr process, MemoryPatternMacro pattern, IntPtr basePtr, int line, byte[] data, int len)
+        private static void WriteMacroLine(IntPtr process, MemoryPattern pattern, IntPtr basePtr, int line, byte[] data, int len)
         {
-            var ptr = NativeMethods.ReadPointer(process, pattern.IsX64, basePtr + pattern.LineSize * line + pattern.LineAddress);
+            var ptr = NativeMethods.ReadPointer(process, pattern.IsX64, basePtr + pattern.MacroLineSize * line + pattern.MacroLineAddress);
             if (ptr == IntPtr.Zero)
                 return;
 
@@ -504,10 +515,10 @@ namespace FFChatBot.Module.FFXIV
 
             while (this.m_readChat.WaitOne(TimeSpan.Zero))
             {
-                start      = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.Start).ToInt64();
-                end        = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.End).ToInt64();
-                lenStart   = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.LenStart).ToInt64();
-                lenEnd     = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_chatPattern.LenEnd).ToInt64();
+                start      = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_pattern.ChatStart).ToInt64();
+                end        = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_pattern.ChatEnd).ToInt64();
+                lenStart   = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_pattern.ChatLenStart).ToInt64();
+                lenEnd     = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_pattern.ChatLenEnd).ToInt64();
                 
                 if ((start == 0 || end == 0) || (lenStart == 0 || lenEnd == 0))
                     Thread.Sleep(100);

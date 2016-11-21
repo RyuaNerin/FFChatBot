@@ -15,6 +15,7 @@ namespace RyuaNerin
                 var curVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
 
                 var req = HttpWebRequest.Create(string.Format("https://api.github.com/repos/{0}/{1}/releases/latest", owner, repository)) as HttpWebRequest;
+                req.UserAgent = "RyuaNerin";
                 req.Timeout = 5000;
                 using (var res = req.GetResponse())
                 using (var stream = res.GetResponseStream())
@@ -22,8 +23,8 @@ namespace RyuaNerin
                     var reader = new StreamReader(stream, Encoding.UTF8);
                     string str = reader.ReadToEnd();
 
-                    if (Version.Parse(Regex.Match(str, @"""tag_name""[ \t]*:[ \t]*""([^""]+)\""").Groups[1].Value) > curVersion)
-                        return Regex.Match(str, @"""html_url""[ \t]*:[ \t]*""([^""]+)\""").Groups[1].Value;
+                    if (Version.Parse(Regex.Match(str, @"""tag_name""[ \t]*:[ \t]*""([^""]+)""").Groups[1].Value) > curVersion)
+                        return Regex.Match(str, @"""html_url""[ \t]*:[ \t]*""([^""]+)""").Groups[1].Value;
                 }
             }
             catch
