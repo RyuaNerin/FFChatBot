@@ -77,6 +77,9 @@ namespace FFChatBot.FFData
                         key = int.Parse(line.Substring(0, line.IndexOf('\t')));
                         val = line.Substring(line.IndexOf('\t') + 1);
 
+                        if (string.IsNullOrWhiteSpace(val))
+                            continue;
+
                         list.Add(key, Encoding.UTF8.GetBytes(val));
                     }
                     catch

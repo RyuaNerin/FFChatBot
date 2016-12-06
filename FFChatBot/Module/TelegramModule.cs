@@ -42,12 +42,7 @@ namespace FFChatBot.Module
                 if (this.m_telegram.TestApiAsync().Result)
                 {
                     this.BotName = this.m_telegram.GetMeAsync().Result.Username;
-
-                    if (!this.m_reported)
-                    {
-                        Sentry.Info(null, "Started telegram ({0})", this.BotName);
-                        this.m_reported = true;
-                    }
+                    Sentry.Info(null, "Started telegram ({0})", this.BotName);
 
                     this.m_telegram.StartReceiving();
 
@@ -68,6 +63,8 @@ namespace FFChatBot.Module
             this.m_telegramConnected = false;
             this.m_telegram.StopReceiving();
             this.m_telegram = null;
+
+            Sentry.Info(null, "Stop telegram ({0})", this.BotName);
         }
 
         public void SendMessage(User user, string str, bool markdown)
