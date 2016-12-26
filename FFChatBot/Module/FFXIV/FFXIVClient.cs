@@ -131,6 +131,8 @@ namespace FFChatBot.Module.FFXIV
         public void GetClientProcess()
         {
             var processes = new List<Process>();
+            processes.AddRange(Process.GetProcessesByName("ffxiv"));
+            processes.AddRange(Process.GetProcessesByName("ffxiv_multi"));
             processes.AddRange(Process.GetProcessesByName("ffxiv_dx11"));
             processes.AddRange(Process.GetProcessesByName("ffxiv_dx11_multi"));
 
