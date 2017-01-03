@@ -18,6 +18,9 @@
             MacroLineSize       = 0x54,
             MacroLineAddress    = 0,
             MacroLineLength     = 8,
+
+            LoginStatusStatus   = 0x108CFD8,
+            LoginStatusValue    = 1,
         };
 
         public static readonly MemoryPattern X64 = new MemoryPattern
@@ -36,6 +39,9 @@
             MacroLineSize       = 0x68,
             MacroLineAddress    = 0,
             MacroLineLength     = 16,
+            
+            LoginStatusStatus   = 0x1702D60,
+            LoginStatusValue    = 1,
         };
 
         public bool     IsX64               { get; private set; }
@@ -53,6 +59,7 @@
         public int      MacroLineAddress    { get; private set; }
         public int      MacroLineLength     { get; private set; }
 
-        public int      LoginStatusOffset   { get; private set; }
+        public int      LoginStatusStatus   { get; private set; }
+        public int      LoginStatusValue    { get; private set; }
     }
 }

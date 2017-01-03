@@ -87,6 +87,7 @@ namespace FFChatBot.Module.FFXIV
         private bool   m_isX64;
         private IntPtr m_chatLog;
         private IntPtr m_macro;
+        private IntPtr m_baseModulePtr;
 
         private Task m_readChatTask;
         private Task m_sendChatTask;
@@ -165,7 +166,8 @@ namespace FFChatBot.Module.FFXIV
                     this.m_pattern = this.m_isX64 ? MemoryPattern.X64 : MemoryPattern.X86;
                     try
                     {
-                        this.m_chatLog = NativeMethods.ScanFromBytes(this.m_ffxiv.MainModule.BaseAddress, this.m_ffxiv.MainModule.ModuleMemorySize, this.m_ffxivHandle, this.m_pattern.ChatPattern, this.m_isX64);                    	
+                        this.m_baseModulePtr = this.m_ffxiv.MainModule.BaseAddress;
+                        this.m_chatLog = NativeMethods.ScanFromBytes(this.m_baseModulePtr, this.m_ffxiv.MainModule.ModuleMemorySize, this.m_ffxivHandle, this.m_pattern.ChatPattern, this.m_isX64);                    	
                     }
                     catch
                     {
@@ -516,14 +518,23 @@ namespace FFChatBot.Module.FFXIV
 
             while (this.m_readChat.WaitOne(TimeSpan.Zero))
             {
+                if (NativeMethods.ReadInt8(this.m_ffxivHandle, this.m_baseModulePtr + this.m_pattern.LoginStatusStatus) != this.m_pattern.LoginStatusValue)
+                {
+                    this.Clear(true);
+                    return;
+                }
+
                 start      = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_pattern.ChatStart).ToInt64();
                 end        = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_pattern.ChatEnd).ToInt64();
                 lenStart   = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_pattern.ChatLenStart).ToInt64();
                 lenEnd     = NativeMethods.ReadPointer(this.m_ffxivHandle, this.m_isX64, m_chatLog, m_pattern.ChatLenEnd).ToInt64();
-                
-                if ((start == 0 || end == 0) || (lenStart == 0 || lenEnd == 0))
-                    Thread.Sleep(100);
 
+                if ((start == 0 || end == 0) || (lenStart == 0 || lenEnd == 0))
+                {
+                    Sentry.Error(new ApplicationException("error with chat log - cannot read chat pointer."), null);
+                    this.Clear(true);
+                    return;
+                }
                 else if (lenStart + num * 4 == lenEnd)
                 {
                     flag = false;
@@ -532,8 +543,11 @@ namespace FFChatBot.Module.FFXIV
                 else
                 {
                     if (lenEnd < lenStart)
-                        continue;
-                        //throw new ApplicationException("error with chat log - end len pointer is before beginning len pointer.");
+                    {
+                        Sentry.Error(new ApplicationException("error with chat log - end len pointer is before beginning len pointer."), null);
+                        this.Clear(true);
+                        return;
+                    }
 
                     if (lenEnd < (lenStart + num * 4))
                     {
@@ -546,8 +560,10 @@ namespace FFChatBot.Module.FFXIV
                                 {
                                     zero = 0;
                                     ptr2 = 0;
-                                    continue;
-                                    //throw new ApplicationException("Error with chat log - message length too long.");
+
+                                    Sentry.Error(new ApplicationException("Error with chat log - message length too long."), null);
+                                    this.Clear(true);
+                                    return;
                                 }
                                 int length = buff[j] - ((j == 0) ? 0 : buff[j - 1]);
                                 if (length != 0)
@@ -562,16 +578,25 @@ namespace FFChatBot.Module.FFXIV
                     zero = start;
                     ptr2 = lenStart;
                     if ((lenEnd - lenStart) > 0x100000L)
-                        continue;
-                        //throw new ApplicationException("Error with chat log - too much unread Len data (>100kb).");
+                    {
+                        Sentry.Error(new ApplicationException("Error with chat log - too much unread Len data (>100kb)."), null);
+                        this.Clear(true);
+                        return;
+                    }
 
                     if (((lenEnd - lenStart) % 4) != 0)
-                        continue;
-                        //throw new ApplicationException("Error with chat log - Log length array is invalid.");
+                    {
+                        Sentry.Error(new ApplicationException("Error with chat log - Log length array is invalid."), null);
+                        this.Clear(true);
+                        return;
+                    }
 
                     if ((lenEnd - lenStart) > 0xfa0L)
-                        continue;
-                        //throw new ApplicationException("Error with chat log - Log length array is too small.");
+                    {
+                        Sentry.Error(new ApplicationException("Error with chat log - Log length array is too small."), null);
+                        this.Clear(true);
+                        return;
+                    }
 
                     len = (int)(lenEnd - lenStart) / 4;
                     for (i = num; i < len; i++)
@@ -1023,6 +1048,16 @@ namespace FFChatBot.Module.FFXIV
                     return new IntPtr(BitConverter.ToInt64(lpBuffer, 0));
                 else
                     return new IntPtr(BitConverter.ToInt32(lpBuffer, 0));
+            }
+
+            public static int ReadInt8(IntPtr handle, IntPtr address)
+            {
+                byte[] lpBuffer = new byte[1];
+                IntPtr read;
+                if (!NativeMethods.ReadProcessMemory(handle, address, lpBuffer, new IntPtr(1), out read) || read.ToInt64() != 1)
+                    return 0;
+
+                return lpBuffer[0];
             }
 
             public static int ReadInt32(IntPtr handle, IntPtr address)
