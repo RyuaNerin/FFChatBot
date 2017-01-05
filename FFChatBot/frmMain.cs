@@ -495,9 +495,9 @@ namespace FFChatBot
                     }
                 }
 
-                if (id != ChatIds.FreeCompany || // FC 가 아닌 경우에는 접속/종료 알림이 없다.
-                    (this.m_client.ClientUserName == null || this.m_client.ClientUserName != chat.User) ||
-                    !regBotChat.IsMatch(chat.Text))
+                // FC 가 아닌 경우에는 접속/종료 알림이 없다.
+
+                if (this.m_client.ClientUserName == null || this.m_client.ClientUserName != chat.User)
                 {
                     this.m_user.Foreach(le =>
                     {

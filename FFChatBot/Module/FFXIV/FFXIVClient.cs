@@ -106,8 +106,12 @@ namespace FFChatBot.Module.FFXIV
             this.Clear(true);
         }
 
+        private int m_clearSync = 0;
         private void Clear(bool raiseEvent)
         {
+            if (Interlocked.CompareExchange(ref m_clearSync, 1, 0) == 1)
+                return;
+
             this.StopTTF();
 
             this.m_readChat.Reset();
@@ -127,6 +131,8 @@ namespace FFChatBot.Module.FFXIV
                 if (raiseEvent && this.OnClientExited != null)
                     this.OnClientExited();
             }
+
+            Interlocked.Exchange(ref m_clearSync, 0);
         }
 
         public void GetClientProcess()
